@@ -23,6 +23,4 @@ Executives: Ensure accountability and efficient follow-through on key decisions 
 
 ![Architecture Diagram](./images/Architecture_Diagram.png)
 
-https://drive.google.com/file/d/1oFa5C-etWyM0Wv72f20l8UDRlhhsZvQb/view?usp=drive_link
-
 
