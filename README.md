@@ -19,7 +19,9 @@ Project Managers: Automatically generate meeting summaries and action points, sa
 Team Members: Receive clear, automatically generated tasks in Jira, ensuring nothing from the meeting is missed or forgotten.
 Executives: Ensure accountability and efficient follow-through on key decisions discussed during meetings.
 
-**Block Diagram**
+**Architecture Diagram**
+
+![Architecture Diagram](./images/Architecture_Diagram.png)
 
 https://drive.google.com/file/d/1oFa5C-etWyM0Wv72f20l8UDRlhhsZvQb/view?usp=drive_link
 
