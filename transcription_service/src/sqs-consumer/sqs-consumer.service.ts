@@ -1,6 +1,6 @@
 import "../config/envloader.js";
 import AWS from "aws-sdk";
-import { processMessage } from "../transcription/transcription.service.js";
+import { processTranscriptionMessage } from "../transcription/transcription.service.js";
 
 AWS.config.update({
 	region: process.env.AWS_REGION,
@@ -44,9 +44,8 @@ async function handleMessage(
 ) {
 	try {
 		const messageObject = JSON.parse(body);
-		console.log("Processing message:", messageObject);
 		// Process the message
-		await processMessage(messageObject);
+		await processTranscriptionMessage(messageObject);
 		// Delete the message
 		await deleteMessage(queueUrl, receiptHandle);
 	} catch (error) {

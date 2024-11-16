@@ -16,9 +16,7 @@ export async function sendSQSMessage(queueUrl: string, messageObject: any) {
 	};
 	try {
 		const data = await sqs.sendMessage(params).promise();
-		console.log(
-			`Successfully sent message to SQS (${messageObject?.type}): ${queueUrl}`
-		);
+		console.log(`Successfully sent message to SQS: ${queueUrl}`);
 		console.log("Message sent: ", data.MessageId);
 	} catch (err) {
 		console.log("Error sending message: ", err);
