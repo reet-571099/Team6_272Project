@@ -7,6 +7,7 @@ export async function processTranscriptionMessage(messageObject: any) {
 	const transcriptionResult = await deepgramTranscribeAudioUtil(
 		messageObject?.audio_url
 	);
+	// TODO: Delete
 	console.log("+++++++++++++++++++++++++++++++++++++++++");
 	console.log(
 		"transcriptionResult (json): ",
