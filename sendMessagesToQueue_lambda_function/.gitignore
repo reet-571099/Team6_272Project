@@ -1,0 +1,3 @@
+node_modules/
+sendMessagesToQueue_lambda_function.zip
+.env*
