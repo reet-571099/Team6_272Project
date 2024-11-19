@@ -1,4 +1,4 @@
-import "../config/envloader.js";
+import "../config/envLoader.js";
 import AWS from "aws-sdk";
 import { processTranscriptionMessage } from "../transcription/transcription.service.js";
 
