@@ -1,0 +1,6 @@
+docker buildx build --platform linux/arm64 -t flask-jira-app .
+
+docker run -p 5001:5001 flask-jira-app
+
+docker pull nick287/flask-jira-app:1
+
