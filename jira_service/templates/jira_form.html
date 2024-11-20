@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Jira Story</title>
+    <style>
+        .required::after {
+            content: " *";
+            color: red;
+        }
+        .optional {
+            font-style: italic;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <h1>Create a Jira Story</h1>
+
+    <form id="jiraForm">
+        <!-- Required Fields -->
+        <label for="projectKey" class="required">Project Key:</label>
+        <input type="text" id="projectKey" name="project_key" required><br><br>
+        
+        <label for="summary" class="required">Summary:</label>
+        <input type="text" id="summary" name="summary" required><br><br>
+        
+        <label for="issueType" class="required">Issue Type:</label>
+        <select id="issueType" name="issuetype">
+            <option value="Story" selected>Story</option>
+            <option value="Bug">Bug</option>
+            <option value="Task">Task</option>
+            <option value="Epic">Epic</option>
+            <option value="Subtask">Subtask</option>
+        </select><br><br>
+        
+        <label for="description" class="optional">Description:</label>
+        <textarea id="description" name="description"></textarea><br><br>
+        
+        <!-- Optional Fields -->
+        <label for="priority" class="optional">Priority:</label>
+        <input type="text" id="priority" name="priority"><br><br>
+        
+        <label for="assignee" class="optional">Assignee (Account ID):</label>
+        <input type="text" id="assignee" name="assignee"><br><br>
+        
+        <label for="labels" class="optional">Labels (comma-separated):</label>
+        <input type="text" id="labels" name="labels"><br><br>
+        
+        <label for="components" class="optional">Components (comma-separated):</label>
+        <input type="text" id="components" name="components"><br><br>
+        
+        <label for="duedate" class="optional">Due Date (YYYY-MM-DD):</label>
+        <input type="date" id="duedate" name="duedate"><br><br>
+        
+        <label for="parentKey" class="optional">Parent Issue Key (for Sub-tasks):</label>
+        <input type="text" id="parentKey" name="parent"><br><br>
+        
+        <!-- Custom Field Example -->
+        <label for="customField" class="optional">Custom Field (e.g., Epic Link):</label>
+        <input type="text" id="customField" name="customfield_10011"><br><br>
+        
+        <button type="button" onclick="createJiraStory()">Create Story</button>
+    </form>
+
+    <div id="response"></div>
+    <script>
+        function createJiraStory() {
+            // Capture form data
+            const data = {
+                project_key: document.getElementById("projectKey").value,
+                summary: document.getElementById("summary").value,
+                issuetype: document.getElementById("issueType").value,
+                description: {
+                    type: "doc",
+                    version: 1,
+                    content: [
+                        {
+                            type: "paragraph",
+                            content: [
+                                {
+                                    type: "text",
+                                    text: document.getElementById("description").value
+                                }
+                            ]
+                        }
+                    ]
+                }
+            };
+    
+            // Optional fields
+            const priority = document.getElementById("priority").value;
+            const assignee = document.getElementById("assignee").value;
+            const labels = document.getElementById("labels").value;
+            const components = document.getElementById("components").value;
+            const duedate = document.getElementById("duedate").value;
+            const parentKey = document.getElementById("parentKey").value;
+            const customField = document.getElementById("customField").value;
+    
+            // Add optional fields if they are not empty
+            if (priority) data.priority = { name: priority };
+            if (assignee) data.assignee = { id: assignee };
+            if (labels) data.labels = labels.split(",").map(label => label.trim());
+            if (components) data.components = components.split(",").map(component => ({ name: component.trim() }));
+            if (duedate) {
+                // Ensure date is in the correct format
+                const formattedDate = new Date(duedate).toISOString().split('T')[0];
+                data.duedate = formattedDate;
+            }
+            if (parentKey) data.parent = { key: parentKey };
+            if (customField) data.customfield_10011 = customField; // Replace with actual custom field ID if different
+    
+            // Send POST request to create the story
+            fetch('/create_jira_story', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                const responseDiv = document.getElementById("response");
+                if (data.status === "success") {
+                    responseDiv.innerHTML = `<p>Story created successfully! Story ID: ${data.story_id}, Story Key: ${data.story_key}</p>`;
+                } else {
+                    responseDiv.innerHTML = `<p>Error: ${JSON.stringify(data)}</p>`;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    </script>
+    
+</body>
+</html>
