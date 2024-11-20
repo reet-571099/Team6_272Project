@@ -5,11 +5,10 @@ const sqs = new AWS.SQS({});
 export const handler = async (event) => {
 	console.log("S3 Event: ", JSON.stringify(event));
 	const bucketName = event.Records[0].s3.bucket.name;
-	const folderName = "audios";
 	const objectKey = decodeURIComponent(
 		event.Records[0].s3.object.key.replace(/\+/g, " ")
 	);
-	const url = `https://${bucketName}.s3.us-west-1.amazonaws.com/${folderName}/${objectKey}`;
+	const url = `https://${bucketName}.s3.us-west-1.amazonaws.com/${objectKey}`;
 	console.log("Extracted URL: ", url);
 	const userId = extractUserIdFromKey(objectKey);
 	const projectId = extractProjectIdFromKey(objectKey);
