@@ -19,7 +19,7 @@ const s3 = new AWS.S3();
 export async function processTranscriptionMessage(messageObject: any) {
 	console.log("messageObject: ", messageObject);
 	const transcriptionResult = await deepgramTranscribeAudioUtil(
-		messageObject?.audio_url
+		messageObject?.url
 	);
 	const summary =
 		transcriptionResult?.results?.channels?.[0]?.alternatives?.[0]
@@ -36,7 +36,7 @@ export async function processTranscriptionMessage(messageObject: any) {
 			await mkdirAsync(tempDir);
 		}
 		await writeFileAsync(filePath, summary);
-		const bucketName = process.env.S3_BUCKET_NAME as string; // Ensure this is set in the environment variables
+		const bucketName = process.env.AWS_S3_BUCKET_NAME as string;
 		const s3Key = `transcriptions/${fileName}`;
 		const uploadParams = {
 			Bucket: bucketName,
@@ -61,7 +61,6 @@ export async function processTranscriptionMessage(messageObject: any) {
 		console.error("Error during file upload or processing: ", error);
 		throw error;
 	} finally {
-		// Cleanup the temporary file
 		if (fs.existsSync(filePath)) {
 			await unlinkFileAsync(filePath);
 			console.log("Temporary file deleted: ", filePath);

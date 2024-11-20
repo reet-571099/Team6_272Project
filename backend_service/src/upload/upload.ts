@@ -11,8 +11,7 @@ const s3 = new AWS.S3({
 	region: process.env.AWS_REGION,
 });
 
-// Multer Configuration for file upload
-const storage = multer.memoryStorage(); // Store file in memory temporarily
+const storage = multer.memoryStorage();
 const upload = multer({
 	storage,
 	fileFilter: (req, file, cb) => {
@@ -47,7 +46,6 @@ router.post(
 			const customFileName = `${userId}_${projectId}_${Date.now()}_${
 				req.file.originalname
 			}`;
-			// S3 upload parameters
 			const uploadParams = {
 				Bucket: process.env.AWS_S3_BUCKET_NAME!,
 				Key: `${folder}/${customFileName}`,
