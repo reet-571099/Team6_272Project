@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"module": "NodeNext", // Enables native Node.js ESM module support
+		"target": "ES2020", // Targeting modern JS
+		"moduleResolution": "NodeNext", // Node-style resolution for ESM
+		"outDir": "./dist", // Output directory for compiled files
+		"rootDir": "./src", // Where your source files live
+		"esModuleInterop": true, // Required for interop between ES and CommonJS modules
+		"skipLibCheck": true,
+		"strict": true,
+		"resolveJsonModule": true,
+		"noImplicitAny": false,
+		"allowSyntheticDefaultImports": true
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules"]
+}
