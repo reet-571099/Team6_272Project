@@ -141,6 +141,161 @@ def get_all_sprints():
     else:
         print("Error fetching sprints:", response.text)
         return jsonify({"status": "error", "message": response.text}), response.status_code
+    
+@app.route('/validate_user', methods=['POST'])
+def validate_user():
+    """
+    Validates the user credentials and domain to check Jira board connectivity.
+    """
+    print("Received request to validate user credentials.")
+
+    try:
+        # Get JSON data from the request
+        data = request.json
+        if not data:
+            print("Error: No JSON data received in the request.")
+            return jsonify({
+                "status": "error",
+                "message": "Request body must contain JSON data."
+            }), 400
+
+        username = data.get("username")
+        api_token = data.get("api_token")
+        jira_domain = data.get("domain")
+
+        # Validate required fields
+        if not username or not api_token or not jira_domain:
+            print("Error: Missing required fields in the request.")
+            return jsonify({
+                "status": "error",
+                "message": "username, api_token, and domain are required"
+            }), 400
+
+        print(f"Validating user with username: {username}, domain: {jira_domain}")
+
+        # Test API connection
+        auth = HTTPBasicAuth(username, api_token)
+        url = f"https://{jira_domain}/rest/api/3/myself"
+        print(f"Sending request to Jira endpoint: {url}")
+
+        try:
+            response = requests.get(url, auth=auth)
+        except requests.RequestException as req_err:
+            print(f"Request error while connecting to Jira: {req_err}")
+            return jsonify({
+                "status": "error",
+                "message": "Error while connecting to Jira. Please check your network or credentials."
+            }), 500
+
+        # Check the response
+        if response.status_code == 200:
+            print("Validation successful. User can connect to Jira.")
+            return jsonify({
+                "status": "success",
+                "message": "Validation successful. User can connect to Jira."
+            })
+        else:
+            print(f"Validation failed. Jira response: {response.status_code}, {response.text}")
+            return jsonify({
+                "status": "error",
+                "message": f"Validation failed. Jira response: {response.text}"
+            }), response.status_code
+
+    except KeyError as key_err:
+        print(f"KeyError: Missing key in the request data: {key_err}")
+        return jsonify({
+            "status": "error",
+            "message": f"Missing key in request data: {key_err}"
+        }), 400
+    except Exception as e:
+        print(f"Unexpected error in validate_user: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again later."
+        }), 500
+
+@app.route('/get_team_members', methods=['GET'])
+def get_team_members():
+    """
+    Fetches team members (users) in a specific Jira project.
+    """
+    print("Fetching team members for a specific project.")
+
+    try:
+        # Get the project key from query parameters
+        project_key = request.args.get("project_key")
+        if not project_key:
+            print("Error: Project key is required.")
+            return jsonify({
+                "status": "error",
+                "message": "Project key is required as a query parameter."
+            }), 400
+
+        print(f"Fetching team members for project: {project_key}")
+
+        # Jira API endpoint to fetch users for a project
+        url = f"https://{jira_domain}/rest/api/3/user/assignable/search?project={project_key}"
+        print(f"Sending request to Jira endpoint: {url}")
+
+        response = requests.get(url, headers=headers, auth=auth)
+
+        # Check the response
+        if response.status_code == 200:
+            users = response.json()
+            team_members = [{"accountId": user["accountId"], "displayName": user["displayName"], "emailAddress": user.get("emailAddress")} for user in users]
+            print(f"Fetched {len(team_members)} team members for project: {project_key}")
+            return jsonify({"status": "success", "team_members": team_members})
+        else:
+            print(f"Error fetching team members. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+    except requests.RequestException as req_err:
+        print(f"Request error while connecting to Jira: {req_err}")
+        return jsonify({
+            "status": "error",
+            "message": "Error while connecting to Jira. Please check your network or credentials."
+        }), 500
+    except Exception as e:
+        print(f"Unexpected error in get_team_members: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again later."
+        }), 500
+
+@app.route('/get_all_project_keys', methods=['GET'])
+def get_all_project_keys():
+    """
+    Fetches all project keys from the Jira domain.
+    """
+    print("Fetching all project keys from Jira.")
+    
+    try:
+        # Jira API endpoint to fetch all projects
+        url = f"https://{jira_domain}/rest/api/3/project"
+        print(f"Sending request to Jira endpoint: {url}")
+        
+        response = requests.get(url, headers=headers, auth=auth)
+        
+        # Check the response
+        if response.status_code == 200:
+            projects = response.json()
+            project_keys = [{"key": project["key"], "name": project["name"]} for project in projects]
+            print(f"Fetched {len(project_keys)} projects.")
+            return jsonify({"status": "success", "projects": project_keys})
+        else:
+            print(f"Error fetching project keys. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+    except requests.RequestException as req_err:
+        print(f"Request error while connecting to Jira: {req_err}")
+        return jsonify({
+            "status": "error",
+            "message": "Error while connecting to Jira. Please check your network or credentials."
+        }), 500
+    except Exception as e:
+        print(f"Unexpected error in get_all_project_keys: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again later."
+        }), 500
 
 # Endpoint to fetch all fields available in Jira for creating issues
 @app.route('/get_all_fields', methods=['GET'])
