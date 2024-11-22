@@ -1,3 +1,5 @@
+import "../config/envLoader.js";
+import axios from "axios";
 import { IUserCreation } from "./user.interface.js";
 import * as UsersDataLayer from "./user.datalayer.js";
 import { UserType } from "../models/user.schema.js";
@@ -72,5 +74,39 @@ export async function validateLogin(email, password) {
 	} catch (err: any) {
 		console.error("Error during login:", err?.message);
 		throw new Error(`Error during login: ${err?.message}`);
+	}
+}
+
+export async function validateJiraToken(userId, username, api_token, domain) {
+	try {
+		const response = await axios.post(
+			`${process.env.JIRA_VALIDATION_BASE_URL}/validate_user`,
+			{
+				username,
+				api_token,
+				domain,
+			},
+			{
+				headers: {
+					"Content-Type": "application/json",
+				},
+			}
+		);
+		if (response?.data?.status == "success") {
+			const updatedUser = await UsersDataLayer.updateSingleUser(
+				{ _id: userId },
+				{ jira_token: api_token }
+			);
+			if (updatedUser?.jira_token) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} catch (err: any) {
+		console.error("Error during user jira validation", err?.message);
+		throw new Error(`Error during user jira validation ${err?.message}`);
 	}
 }

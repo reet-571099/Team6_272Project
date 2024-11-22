@@ -87,21 +87,27 @@ router.put(
 	}
 );
 
-router.delete("/:user_id", [], async (req: Request, res: Response) => {
-	try {
-		const userId = req.params.user_id;
-		const updateQuery = {
-			is_deleted: true,
-		};
-		const updatedUser = await UsersService.updateSingleUser(
-			{ _id: userId },
-			updateQuery
-		);
-		res.status(201).json(updatedUser);
-	} catch (err: any) {
-		res.status(500).json({ error: `Error deleting user: ${err.message}` });
+router.delete(
+	"/:user_id",
+	[isUserLoggedIn],
+	async (req: Request, res: Response) => {
+		try {
+			const userId = req.params.user_id;
+			const updateQuery = {
+				is_deleted: true,
+			};
+			const updatedUser = await UsersService.updateSingleUser(
+				{ _id: userId },
+				updateQuery
+			);
+			res.status(201).json(updatedUser);
+		} catch (err: any) {
+			res.status(500).json({
+				error: `Error deleting user: ${err.message}`,
+			});
+		}
 	}
-});
+);
 
 router.post("/signup", [], async (req: Request, res: Response) => {
 	try {
@@ -144,6 +150,14 @@ router.post("/login", [], async (req, res) => {
 			email,
 			password
 		);
+		// Set JWT in cookie
+		res.cookie("jwt", token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "prod",
+			sameSite: "lax",
+			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		});
+		req["user"] = user; // Attach user to the request object
 		// Respond with user and token
 		return res.status(200).json({ user, token });
 	} catch (err: any) {
@@ -161,5 +175,24 @@ router.get(
 		res.redirect("/");
 	}
 );
+
+router.post("/validate_user", [], async (req, res) => {
+	try {
+		const { username, api_token, domain } = req.body;
+		const userId = req?.user?._id?.toString();
+		// Validate user credentials and get the token
+		const isValidated = await UsersService.validateJiraToken(
+			userId,
+			username,
+			api_token,
+			domain
+		);
+		// Respond with user and token
+		return res.status(200).json({ isValidated });
+	} catch (err: any) {
+		console.error("Error during user jira validation:", err?.message);
+		return res.status(500).json({ error: err.message });
+	}
+});
 
 export default router;
