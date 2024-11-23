@@ -176,7 +176,7 @@ router.get(
 	}
 );
 
-router.post("/validate_user", [], async (req, res) => {
+router.post("/validate_user", [isUserLoggedIn], async (req, res) => {
 	try {
 		const { username, api_token, domain } = req.body;
 		const userId = req?.user?._id?.toString();

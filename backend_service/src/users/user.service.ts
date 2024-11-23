@@ -95,9 +95,9 @@ export async function validateJiraToken(userId, username, api_token, domain) {
 		if (response?.data?.status == "success") {
 			const updatedUser = await UsersDataLayer.updateSingleUser(
 				{ _id: userId },
-				{ jira_token: api_token }
+				{ username, api_token, domain }
 			);
-			if (updatedUser?.jira_token) {
+			if (updatedUser?.api_token) {
 				return true;
 			} else {
 				return false;
