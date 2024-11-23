@@ -251,6 +251,52 @@ def validate_user():
             "message": "An unexpected error occurred. Please try again later."
         }), 500
 
+@app.route('/validate_user', methods=['POST'])
+def validate_user():
+    """
+    Validates the user credentials and domain to check Jira connectivity.
+    """
+    print("Received request to validate user credentials.")
+
+    try:
+        # Get the username from the request
+        data = request.json
+        username = data.get("username")
+        if not username:
+            return jsonify({"status": "error", "message": "Username is required"}), 400
+
+        # Fetch user-specific config from MongoDB
+        user_config = get_user_config(username)
+        if not user_config:
+            return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+
+        # Extract Jira credentials from the config
+        jira_domain = user_config["domain"]
+        api_token = user_config["api_token"]
+        email = user_config["email"]
+        auth = HTTPBasicAuth(email, api_token)
+
+        # Test API connection
+        url = f"https://{jira_domain}/rest/api/3/myself"
+        print(f"Sending request to Jira endpoint: {url}")
+
+        response = requests.get(url, auth=auth)
+
+        # Check response status
+        if response.status_code == 200:
+            print("Validation successful. User can connect to Jira.")
+            return jsonify({"status": "success", "message": "Validation successful. User can connect to Jira."})
+        else:
+            print(f"Validation failed. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+
+    except requests.RequestException as req_err:
+        print(f"Request error while connecting to Jira: {req_err}")
+        return jsonify({"status": "error", "message": "Error connecting to Jira. Please check your credentials and network."}), 500
+    except Exception as e:
+        print(f"Unexpected error in validate_user: {e}")
+        return jsonify({"status": "error", "message": "An unexpected error occurred. Please try again later."}), 500
+
 @app.route('/get_team_members', methods=['GET'])
 def get_team_members():
     """
