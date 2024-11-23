@@ -2,27 +2,6 @@ import json
 from flask import Flask, request, render_template, jsonify
 import requests
 from requests.auth import HTTPBasicAuth
-from pymongo import MongoClient
-import certifi
-from flask_cors import CORS
-
-# Initialize Flask app
-app = Flask(__name__)
-
-# Enable CORS globally with explicit configuration
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-
-
-# MongoDB connection
-MONGODB_URL = "mongodb+srv://admin:dbUserPassword@rajat-sjsu.ht3fo.mongodb.net/cmpe_272?retryWrites=true&w=majority&tls=true"
-mongo_client = MongoClient(MONGODB_URL, tlsCAFile=certifi.where())
-
-# Access database and collection
-db = mongo_client["cmpe_272"]
-users_collection = db["users"]
-
-
-
 
 # Load configuration
 with open("config.json") as config_file:
@@ -67,55 +46,15 @@ def get_account_id(email):
         print(f"Error fetching account ID for {email}: {response.text}")
         return None
 
-def get_user_config(username):
-    """
-    Fetches configuration details for the given username (email) from MongoDB.
-    """
-    print(f"Fetching configuration for username: {username}")
-    user_config = users_collection.find_one({"username": username, "is_deleted": False})
-    
-    if not user_config:
-        print(f"Configuration not found for username: {username}")
-        return None
-
-    # Return only the required fields
-    return {
-        "email": user_config["username"],
-        "domain": user_config["domain"],
-        "api_token": user_config["api_token"]
-    }
-
-
 # Endpoint to handle form submission and create a Jira story with dynamic fields
 @app.route('/create_jira_story', methods=['POST'])
 def create_jira_story():
     print("Received request to create Jira story.")
 
-    # Get username from the request
-    username = request.args.get("username")
-    if not username:
-        return jsonify({"status": "error", "message": "Username is required"}), 400
-
-    # Fetch user-specific config
-    user_config = get_user_config(username)
-    if not user_config:
-        return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
-
-    # Extract Jira credentials from the config
-    jira_domain = user_config["domain"]
-    api_token = user_config["api_token"]
-    email = user_config["email"]
-    auth = HTTPBasicAuth(email, api_token)
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-
-    # Process the request payload
-    data = request.json
+    data = request.json  # Capture all JSON data from the request body
     print("Incoming request data:", data)
 
-    # Mandatory fields
+    # Mandatory fields for Jira issue creation
     project_key = data.get("project_key")
     summary = data.get("summary")
     issue_type = data.get("issuetype", "Story")  # Default to "Story" if not specified
@@ -133,8 +72,17 @@ def create_jira_story():
         }
     }
 
-    # Handle assignee
-    assignee_email = data.get("assignee")
+    # Handle optional fields and check for assignee email
+    optional_fields = {k: v for k, v in data.items() if k not in ["project_key", "summary", "issuetype"]}
+    
+    # Check if assignee email is provided, and if so, retrieve account ID
+    assignee_info = optional_fields.pop("assignee", None)
+    assignee_email = None
+    if isinstance(assignee_info, dict) and "id" in assignee_info:
+        assignee_email = assignee_info["id"]
+    elif isinstance(assignee_info, str):
+        assignee_email = assignee_info  # if assignee was passed directly as a string email
+    
     if assignee_email:
         account_id = get_account_id(assignee_email)
         if account_id:
@@ -143,47 +91,23 @@ def create_jira_story():
             print(f"Assignee email '{assignee_email}' could not be resolved to an account ID.")
             return jsonify({"status": "error", "message": f"Assignee email '{assignee_email}' not found."}), 400
 
-    # Convert description to ADF format if present
-    description = data.get("description")
-    if description:
-        payload["fields"]["description"] = {
-            "type": "doc",
-            "version": 1,
-            "content": [
-                {
-                    "type": "paragraph",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": description
-                        }
-                    ]
-                }
-            ]
-        }
-
-    # Add other optional fields dynamically
-    optional_fields = {k: v for k, v in data.items() if k not in ["project_key", "summary", "issuetype", "description", "assignee"]}
+    # Update payload with any other optional fields
     payload["fields"].update(optional_fields)
-
-    # Convert the payload to JSON
     payload_json = json.dumps(payload)
     print("Payload for Jira API request:", payload_json)
 
     # Send POST request to create the story
     url = f"https://{jira_domain}/rest/api/3/issue"
-    try:
-        response = requests.post(url, headers=headers, data=payload_json, auth=auth)
-        if response.status_code == 201:
-            response_data = response.json()
-            print("Jira story created successfully:", response_data)
-            return jsonify({"status": "success", "story_id": response_data["id"], "story_key": response_data["key"]})
-        else:
-            print("Error creating Jira story:", response.text)
-            return jsonify({"status": "error", "message": response.text}), response.status_code
-    except requests.RequestException as req_err:
-        print(f"Request error while creating Jira story: {req_err}")
-        return jsonify({"status": "error", "message": "Error while connecting to Jira. Please check your network or credentials."}), 500
+    response = requests.post(url, headers=headers, data=payload_json, auth=auth)
+
+    # Check response and log results
+    if response.status_code == 201:
+        response_data = response.json()
+        print("Jira story created successfully:", response_data)
+        return jsonify({"status": "success", "story_id": response_data["id"], "story_key": response_data["key"]})
+    else:
+        print("Error creating Jira story:", response.text)
+        return jsonify({"status": "error", "message": response.text}), response.status_code
 
 @app.route('/get_all_project_keys', methods=['GET'])
 def get_all_project_keys():
@@ -191,33 +115,15 @@ def get_all_project_keys():
     Fetches all project keys from the Jira domain.
     """
     print("Fetching all project keys from Jira.")
-
-    # Get username from the request
-    username = request.args.get("username")
-    if not username:
-        return jsonify({"status": "error", "message": "Username is required"}), 400
-
-    # Fetch user-specific config
-    user_config = get_user_config(username)
-    if not user_config:
-        return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
-
-    # Extract Jira credentials from the config
-    jira_domain = user_config["domain"]
-    api_token = user_config["api_token"]
-    email = user_config["email"]
-    auth = HTTPBasicAuth(email, api_token)
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-
-    # Jira API endpoint to fetch all projects
-    url = f"https://{jira_domain}/rest/api/3/project"
-    print(f"Sending request to Jira endpoint: {url}")
-
+    
     try:
+        # Jira API endpoint to fetch all projects
+        url = f"https://{jira_domain}/rest/api/3/project"
+        print(f"Sending request to Jira endpoint: {url}")
+        
         response = requests.get(url, headers=headers, auth=auth)
+        
+        # Check the response
         if response.status_code == 200:
             projects = response.json()
             project_keys = [{"key": project["key"], "name": project["name"]} for project in projects]
@@ -228,7 +134,17 @@ def get_all_project_keys():
             return jsonify({"status": "error", "message": response.text}), response.status_code
     except requests.RequestException as req_err:
         print(f"Request error while connecting to Jira: {req_err}")
-        return jsonify({"status": "error", "message": "Error while connecting to Jira. Please check your network or credentials."}), 500
+        return jsonify({
+            "status": "error",
+            "message": "Error while connecting to Jira. Please check your network or credentials."
+        }), 500
+    except Exception as e:
+        print(f"Unexpected error in get_all_project_keys: {e}")
+        return jsonify({
+            "status": "error",
+            "message": "An unexpected error occurred. Please try again later."
+        }), 500
+
 
 # Endpoint to get all stories from a specific sprint
 @app.route('/get_sprint_stories/<sprint_id>', methods=['GET'])
