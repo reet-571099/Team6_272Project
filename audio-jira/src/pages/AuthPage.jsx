@@ -1,22 +1,72 @@
-// pages/AuthPage.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight } from "lucide-react";
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [formData, setFormData] = useState({
+    first_name: "",
+    last_name: "",
     email: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    navigate("/dashboard");
+  const validateInput = () => {
+    if (!formData.email || !formData.password) {
+      setError("Email and password are required.");
+      return false;
+    }
+    if (isSignUp && (!formData.first_name || !formData.last_name)) {
+      setError("First name and last name are required for sign-up.");
+      return false;
+    }
+    return true;
   };
 
-  const handleGoogleSignIn = () => {
-    navigate("/dashboard");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateInput()) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      const url = isSignUp
+        ? "http://localhost:8000/api/users/signup"
+        : "http://localhost:8000/api/users/login";
+
+      const payload = isSignUp
+        ? formData
+        : { email: formData.email, password: formData.password };
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Incorrect Username/Password");
+      }
+
+      const data = await response.json();
+      if (isSignUp) {
+        alert("Account created successfully! Redirecting to dashboard...");
+      } else {
+        localStorage.setItem("jwt", data.token); // Store JWT for login
+        alert("Login successful! Redirecting to dashboard...");
+      }
+
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message || "Request failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,84 +78,120 @@ const AuthPage = () => {
           </div>
         </div>
         <h2 className="text-center text-3xl font-bold text-gray-900">
-          Welcome back
+          {isSignUp ? "Create an account" : "Welcome back"}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Sign in to continue to AudioJira
+          {isSignUp
+            ? "Sign up to get started with AudioJira"
+            : "Sign in to continue to AudioJira"}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white/70 backdrop-blur-lg py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="text-red-500 text-sm text-center">{error}</div>
+            )}
+
+            {isSignUp && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.first_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, first_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.last_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, last_name: e.target.value })
+                    }
+                  />
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Email address
               </label>
-              <div className="mt-1 relative">
-                <input
-                  type="email"
-                  required
-                  className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                />
-                <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-              </div>
+              <input
+                type="email"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Password
               </label>
-              <div className="mt-1 relative">
-                <input
-                  type="password"
-                  required
-                  className="appearance-none block w-full px-3 py-2 pl-10 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                />
-                <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-              </div>
+              <input
+                type="password"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+              />
             </div>
 
             <button
               type="submit"
               className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 transition-all transform hover:scale-105"
+              disabled={loading}
             >
-              Sign in
-              <ArrowRight className="ml-2 h-4 w-4" />
+              {loading
+                ? "Processing..."
+                : isSignUp
+                ? "Sign up"
+                : "Sign in"}
             </button>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleGoogleSignIn}
-              className="mt-6 w-full flex justify-center items-center py-2.5 px-4 border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all transform hover:scale-105"
-            >
-              <img
-                className="h-5 w-5 mr-2"
-                src="https://www.svgrepo.com/show/475656/google-color.svg"
-                alt="Google logo"
-              />
-              Sign in with Google
-            </button>
+          <div className="mt-4 text-center text-sm">
+            {isSignUp ? (
+              <p>
+                Already have an account?{" "}
+                <button
+                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                  onClick={() => setIsSignUp(false)}
+                >
+                  Sign in
+                </button>
+              </p>
+            ) : (
+              <p>
+                Don't have an account?{" "}
+                <button
+                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                  onClick={() => setIsSignUp(true)}
+                >
+                  Create an account
+                </button>
+              </p>
+            )}
           </div>
         </div>
       </div>
