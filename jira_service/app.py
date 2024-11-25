@@ -5,6 +5,7 @@ from requests.auth import HTTPBasicAuth
 from pymongo import MongoClient
 import certifi
 from flask_cors import CORS
+import datetime
 
 # Load configuration
 with open("config.json") as config_file:
@@ -74,6 +75,7 @@ def home():
 def validate_user():
     """
     Validates the user credentials and domain to check Jira connectivity.
+    If successful, stores or updates user details in MongoDB.
     """
     print("Received request to validate user credentials.")
 
@@ -106,7 +108,36 @@ def validate_user():
         # Check response status
         if response.status_code == 200:
             print("Validation successful. User can connect to Jira.")
+
+            # Save or update user details in MongoDB
+            try:
+                user_details = {
+                    "username": username,
+                    "api_token": api_token,
+                    "domain": jira_domain,
+                    "is_deleted": False,  # Ensure the entry is marked as active
+                    "updatedAt": datetime.datetime.utcnow()
+                }
+
+                # Check if the user already exists
+                existing_user = users_collection.find_one({"username": username})
+
+                if existing_user:
+                    # Update existing user details
+                    print(f"Updating existing user details for username: {username}")
+                    users_collection.update_one({"username": username}, {"$set": user_details})
+                else:
+                    # Insert new user details
+                    print(f"Inserting new user details for username: {username}")
+                    user_details["createdAt"] = datetime.datetime.utcnow()
+                    users_collection.insert_one(user_details)
+
+            except Exception as db_err:
+                print(f"Error saving user details to MongoDB: {db_err}")
+                return jsonify({"status": "error", "message": "Error saving user details to the database."}), 500
+
             return jsonify({"status": "success", "message": "Validation successful. User can connect to Jira."})
+
         else:
             print(f"Validation failed. Jira response: {response.status_code}, {response.text}")
             return jsonify({"status": "error", "message": response.text}), response.status_code
