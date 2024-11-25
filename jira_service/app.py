@@ -129,7 +129,7 @@ def create_jira_story():
     user_config = get_user_config(username)
     if not user_config:
         return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
-
+    print("Config received as:", user_config)
     jira_domain = user_config["domain"]
     api_token = user_config["api_token"]
     email = user_config["email"]
@@ -205,6 +205,7 @@ def get_all_project_keys():
     user_config = get_user_config(username)
     if not user_config:
         return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+    print("Config received as:", user_config)
 
     jira_domain = user_config["domain"]
     api_token = user_config["api_token"]
