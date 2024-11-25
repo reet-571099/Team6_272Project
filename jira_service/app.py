@@ -14,7 +14,7 @@ with open("config.json") as config_file:
 app = Flask(__name__)
 
 # Enable CORS globally with explicit configuration
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"], "supports_credentials": True}})
 
 # MongoDB connection
 MONGODB_URL = "mongodb+srv://admin:dbUserPassword@rajat-sjsu.ht3fo.mongodb.net/cmpe_272?retryWrites=true&w=majority&tls=true"

@@ -7,6 +7,7 @@ from requests.auth import HTTPBasicAuth
 with open("config.json") as config_file:
     config = json.load(config_file)
 
+
 app = Flask(__name__)
 
 # Jira configuration
