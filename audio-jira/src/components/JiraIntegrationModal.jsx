@@ -21,34 +21,65 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
     defaultAssignee: "",
   });
 
+  // Function to get JWT token
+  const getAuthToken = () => {
+    return localStorage.getItem("jwt") || "";
+  };
+
+  // Validation function for Jira URL
+  const isValidJiraUrl = (url) => {
+    return url.includes(".atlassian.net");
+  };
+
   const validateCredentials = async () => {
     setIsLoading(true);
     setError("");
 
+     // Validate Jira URL
+     if (!isValidJiraUrl(formData.jiraUrl)) {
+      setError("Invalid Jira URL. The URL must include '.atlassian.net'.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const domain = formData.jiraUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      
-      const response = await fetch('http://18.222.152.111:5001/validate_user', {
-        method: 'POST',
+      const domain = formData.jiraUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      const token = getAuthToken();
+
+      const response = await fetch("http://18.222.152.111:5001/validate_user", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           username: formData.email,
           api_token: formData.apiToken,
-          domain: domain
-        })
+          domain: domain,
+        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to validate Jira credentials');
+      if (response.status === 401) {
+        // Display specific error message for 401 status
+        setError("Invalid credentials, try again.");
+        return;
       }
 
-      setStep(2);
+      if (response.ok) {
+        // Validation successful
+        setStep(2); // Proceed to the next step
+        setError(""); // Clear any existing error messages
+        alert("Validation successful. User can connect to Jira.");
+        return;
+      }
+
+      // Handle other error statuses
+      const data = await response.json();
+      throw new Error(data.message || "Failed to validate Jira credentials");
     } catch (err) {
-      setError(err.message || 'Failed to validate Jira credentials. Please check your inputs and try again.');
+      // Handle generic errors
+      setError(err.message || "Failed to validate Jira credentials. Please check your inputs and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -57,29 +88,33 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      const domain = formData.jiraUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      
-      const response = await fetch('http://18.222.152.111:5001/validate_user', {
-        method: 'POST',
+      const domain = formData.jiraUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      const token = getAuthToken();
+
+      const response = await fetch("http://localhost:8000/api/users/validate_user", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           username: formData.email,
           api_token: formData.apiToken,
-          domain: domain
-        })
+          domain: domain,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to validate Jira credentials');
+        const data = await response.json();
+        throw new Error(data.message || "Failed to validate Jira credentials");
       }
 
       onComplete(formData);
     } catch (err) {
-      setError(err.message || 'Failed to complete setup. Please try again.');
+      setError(err.message || "Failed to complete setup. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -90,16 +125,6 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
       <div className="fixed inset-0 z-10 overflow-y-auto">
         <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
           <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
-            {/* Modal Header */}
-            <div className="absolute right-0 top-0 pr-4 pt-4">
-              <button
-                onClick={onSkip}
-                className="rounded-xl bg-white/50 p-2 text-gray-400 hover:text-gray-500 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
             {/* Modal Content */}
             <div>
               {/* Progress Steps */}
@@ -111,21 +136,13 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                 </div>
               </div>
 
-              {error && (
-                <CustomAlert className="mb-6">
-                  {error}
-                </CustomAlert>
-              )}
+              {error && <CustomAlert className="mb-6">{error}</CustomAlert>}
 
               {step === 1 && (
                 <div>
                   <div className="text-center mb-6">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Connect to Jira
-                    </h3>
-                    <p className="mt-2 text-gray-600">
-                      Enter your Jira instance URL and credentials
-                    </p>
+                    <h3 className="text-xl font-semibold text-gray-900">Connect to Jira</h3>
+                    <p className="mt-2 text-gray-600">Enter your Jira instance URL and credentials</p>
                   </div>
                   <form
                     onSubmit={(e) => {
@@ -138,9 +155,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                         label="Jira Instance URL"
                         placeholder="your-domain.atlassian.net"
                         value={formData.jiraUrl}
-                        onChange={(e) =>
-                          setFormData({ ...formData, jiraUrl: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, jiraUrl: e.target.value })}
                         required
                       />
                       <InputField
@@ -148,9 +163,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                         type="email"
                         placeholder="your-email@company.com"
                         value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         required
                       />
                       <InputField
@@ -158,9 +171,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                         type="password"
                         placeholder="Your Jira API token"
                         value={formData.apiToken}
-                        onChange={(e) =>
-                          setFormData({ ...formData, apiToken: e.target.value })
-                        }
+                        onChange={(e) => setFormData({ ...formData, apiToken: e.target.value })}
                         required
                         helper="Generate an API token from your Atlassian account settings"
                       />
@@ -195,7 +206,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                 </div>
               )}
 
-              {step === 2 && (
+{step === 2 && (
                 <div>
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900">
