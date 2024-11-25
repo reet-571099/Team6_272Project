@@ -78,22 +78,24 @@ def validate_user():
     print("Received request to validate user credentials.")
 
     try:
-        # Get the username from the request
+        # Get JSON data from the request body
         data = request.json
+        if not data:
+            print("Error: No JSON data received in the request.")
+            return jsonify({"status": "error", "message": "Request body must contain JSON data."}), 400
+
+        # Extract credentials from the request
         username = data.get("username")
-        if not username:
-            return jsonify({"status": "error", "message": "Username is required"}), 400
+        api_token = data.get("api_token")
+        jira_domain = data.get("domain")
 
-        # Fetch user-specific config from MongoDB
-        user_config = get_user_config(username)
-        if not user_config:
-            return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+        # Validate required fields
+        if not username or not api_token or not jira_domain:
+            print("Error: Missing required fields in the request.")
+            return jsonify({"status": "error", "message": "username, api_token, and domain are required"}), 400
 
-        # Extract Jira credentials from the config
-        jira_domain = user_config["domain"]
-        api_token = user_config["api_token"]
-        email = user_config["email"]
-        auth = HTTPBasicAuth(email, api_token)
+        # Set up authentication
+        auth = HTTPBasicAuth(username, api_token)
 
         # Test API connection
         url = f"https://{jira_domain}/rest/api/3/myself"
