@@ -3,6 +3,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const storyPointsRouter = require('./routes/storyPoints');
+const {listenForMessages} = require('./SQSConsumer');
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
+    listenForMessages();
 };
   
 startServer();

@@ -2,6 +2,10 @@ const axios = require('axios');
 require('dotenv').config();
 const { OpenAI } = require('openai');
 const { v4: uuidv4 } = require('uuid');
+const { parseAndStoreStories, updateActiveStories, getActiveStories} = require('./storyService');
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+
+const s3Client = new S3Client({ region: 'us-west-1' });
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -63,4 +67,37 @@ async function generateUserStories(transcript, projectId) {
   }
 }
 
-module.exports = { generateUserStories };
+async function processS3File(bucket, key, userId, projectId) {
+  try {
+    const params = {
+      Bucket: bucket,
+      Key: key,
+    };
+
+    const command = new GetObjectCommand(params);
+    const response = await s3Client.send(command);
+
+    const fileStream = response.Body;
+
+    let fileContent = '';
+    fileStream.on('data', (chunk) => {
+      fileContent += chunk;
+    });
+
+    fileStream.on('end', async () => {
+      const stories = await generateUserStories(fileContent, projectId);
+      const savedStories = await parseAndStoreStories(stories, projectId);
+      await updateActiveStories(userId, projectId, stories.length);
+      console.log('Stories saved in DB');
+    });
+
+    fileStream.on('error', (err) => {
+      console.log('Error streaming file:', err);
+    });
+  } catch (error) {
+    console.error('Error processing file from S3:', error);
+  }
+}  
+
+
+module.exports = { generateUserStories, processS3File };

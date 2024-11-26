@@ -6,6 +6,9 @@ const { parseAndStoreStories, updateActiveStories, getActiveStories} = require('
 const  { UserStory } = require('../database/storySchema');
 const { UserProject } = require('../database/userProjects');
 const axios = require('axios');
+const AWS = require('aws-sdk');
+const s3 = new AWS.S3();
+
 
 const router = express.Router();
 
@@ -150,7 +153,7 @@ router.post('/pushToJIRA', async (req, res) => {
         };
 
         const jiraResponse = await axios.post(
-            'https://your-jira-instance.atlassian.net/rest/api/2/issue',
+            'http://18.222.152.111:5001/create_jira_story',
             payload,
             {
                 headers: {
