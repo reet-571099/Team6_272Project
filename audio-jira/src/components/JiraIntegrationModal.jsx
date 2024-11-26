@@ -59,6 +59,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
           domain: domain,
         }),
       });
+      console.log(response)
 
       if (response.status === 401) {
         // Display specific error message for 401 status
