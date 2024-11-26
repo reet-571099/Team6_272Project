@@ -121,7 +121,7 @@ router.post('/user-projects', async (req, res) => {
   });
 
 router.post('/pushToJIRA', async (req, res) => {
-    const { story_id, project_id } = req.body;
+    const { story_id, project_id, userId } = req.body;
 
     try {
         const story = await UserStory.findOne({ story_id, project_id });
@@ -135,29 +135,13 @@ router.post('/pushToJIRA', async (req, res) => {
             project_key: "SCRUM",
             summary: story.story_name,
             issuetype: "Task",
-            description: {
-                type: "doc",
-                version: 1,
-                content: [
-                    {
-                        type: "paragraph",
-                        content: [
-                            {
-                                type: "text",
-                                text: descriptionText,
-                            },
-                        ],
-                    },
-                ],
-            }
+            description: descriptionText
         };
-
         const jiraResponse = await axios.post(
-            'http://18.222.152.111:5001/create_jira_story',
+            `http://18.222.152.111:5001/create_jira_story?username=${userId}`,
             payload,
             {
                 headers: {
-                    'Authorization': `Bearer YOUR_JIRA_API_TOKEN`,
                     'Content-Type': 'application/json',
                 },
             }
@@ -165,7 +149,7 @@ router.post('/pushToJIRA', async (req, res) => {
 
         res.status(200).json({ message: 'Story pushed to JIRA successfully', jiraResponse: jiraResponse.data });
     } catch (error) {
-        console.error('Error pushing story to JIRA:', error.message);
+        console.error('Error pushing story to JIRA:', error);
         res.status(500).json({ error: 'Failed to push story to JIRA', details: error.message });
     }
 });
