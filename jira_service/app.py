@@ -282,6 +282,7 @@ def create_jira_story():
     url = f"https://{jira_domain}/rest/api/3/issue"
     try:
         response = requests.post(url, headers=headers, data=payload_json, auth=auth)
+        print("Response from jira for create story is : ", response)
         if response.status_code == 201:
             return jsonify({"status": "success", "story_id": response.json()["id"], "story_key": response.json()["key"]})
         else:
@@ -291,7 +292,6 @@ def create_jira_story():
         return jsonify({"status": "error", "message": "Error connecting to Jira"}), 500
 
 # Endpoint to fetch all project keys
-@app.route('/get_all_project_keys', methods=['GET'])
 @app.route('/get_all_project_keys', methods=['GET'])
 def get_all_project_keys():
     """
@@ -338,7 +338,7 @@ def get_all_project_keys():
             # Fetch story count using Jira Search API
             url_search = f"https://{jira_domain}/rest/api/3/search"
             query_params = {
-                "jql": f"project={project_key} AND issuetype=Story",
+                "jql": f"project={project_key}",
                 "fields": "id",
                 "maxResults": 0  # Only fetch the total count
             }
