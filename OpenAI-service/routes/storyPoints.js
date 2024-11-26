@@ -1,3 +1,4 @@
+const dotenv = require("dotenv");
 const express = require("express");
 const fs = require("fs");
 const { generateUserStories } = require("../openAIClient");
@@ -12,6 +13,8 @@ const { UserProject } = require("../database/userProjects");
 const axios = require("axios");
 const AWS = require("aws-sdk");
 const s3 = new AWS.S3();
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -112,8 +115,7 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 
 router.post("/user-projects", async (req, res) => {
 	try {
-		if (req.headers["x-api-key"] !== "673d5a02bde2e1dd12e9e07e") {
-			// TODO: Put x-api-key in env
+		if (req.headers["x-api-key"] !== process.env.STORY_SERVICE_API_KEY) {
 			return res.status(400).json({
 				message: "invalid x-api-key!",
 			});
