@@ -14,8 +14,20 @@ with open("config.json") as config_file:
 # Initialize Flask app
 app = Flask(__name__)
 
-# Enable CORS globally with explicit configuration
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"], "supports_credentials": True}})
+@app.before_request
+def debug_origin():
+    print("Incoming Origin:", request.headers.get("Origin"))
+
+@app.after_request
+def log_origin(response):
+    print("Request Origin:", request.headers.get("Origin"))
+    print("Response Access-Control-Allow-Origin:", response.headers.get("Access-Control-Allow-Origin"))
+    return response
+
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://example.com"], "supports_credentials": True}})
+
+#try this
+# CORS(app, resources={r"/*": {"origins": "*"}})
 
 # MongoDB connection
 MONGODB_URL = "mongodb+srv://admin:dbUserPassword@rajat-sjsu.ht3fo.mongodb.net/cmpe_272?retryWrites=true&w=majority&tls=true"
@@ -149,6 +161,59 @@ def validate_user():
         print(f"Unexpected error in validate_user: {e}")
         return jsonify({"status": "error", "message": "An unexpected error occurred. Please try again later."}), 500
 
+# Endpoint to get the number of stories in a specific project
+@app.route('/get_story_count_in_project', methods=['GET'])
+def get_story_count():
+    """
+    Fetches the number of stories in a specific Jira project.
+    """
+    print("Fetching story count for a specific project.")
+
+    # Get username from query parameters
+    username = request.args.get("username")
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+
+    # Get project key from query parameters
+    project_key = request.args.get("project_key")
+    if not project_key:
+        return jsonify({"status": "error", "message": "Project key is required"}), 400
+
+    # Fetch user-specific config
+    user_config = get_user_config(username)
+    if not user_config:
+        return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+
+    print("Config received as:", user_config)
+
+    # Jira credentials and headers
+    jira_domain = user_config["domain"]
+    api_token = user_config["api_token"]
+    email = user_config["email"]
+    auth = HTTPBasicAuth(email, api_token)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    # Jira API to fetch issues for the project
+    url = f"https://{jira_domain}/rest/api/3/search"
+    query_params = {
+        "jql": f"project={project_key} AND issuetype=Story",
+        "fields": "id",  # Only fetch IDs to minimize response size
+        "maxResults": 0  # Jira will still return the total count
+    }
+
+    try:
+        response = requests.get(url, headers=headers, auth=auth, params=query_params)
+        if response.status_code == 200:
+            total_stories = response.json().get("total", 0)  # Get the total count of stories
+            print(f"Total stories in project {project_key}: {total_stories}")
+            return jsonify({"status": "success", "project_key": project_key, "story_count": total_stories})
+        else:
+            print(f"Error fetching stories. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+    except requests.RequestException as e:
+        print(f"Error fetching story count: {e}")
+        return jsonify({"status": "error", "message": "Error connecting to Jira"}), 500
+
 # Endpoint to handle form submission and create a Jira story
 @app.route('/create_jira_story', methods=['POST'])
 def create_jira_story():
@@ -227,31 +292,77 @@ def create_jira_story():
 
 # Endpoint to fetch all project keys
 @app.route('/get_all_project_keys', methods=['GET'])
+@app.route('/get_all_project_keys', methods=['GET'])
 def get_all_project_keys():
-    print("Fetching all project keys from Jira.")
+    """
+    Fetches all project keys from the Jira domain and includes the number of stories in each project.
+    """
+    print("Fetching all project keys from Jira with story counts.")
+
+    # Get username from query parameters
     username = request.args.get("username")
     if not username:
         return jsonify({"status": "error", "message": "Username is required"}), 400
 
+    # Fetch user-specific config
     user_config = get_user_config(username)
     if not user_config:
         return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+
     print("Config received as:", user_config)
 
+    # Jira credentials and headers
     jira_domain = user_config["domain"]
     api_token = user_config["api_token"]
     email = user_config["email"]
     auth = HTTPBasicAuth(email, api_token)
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
-    url = f"https://{jira_domain}/rest/api/3/project"
+    # Jira API endpoint to fetch all projects
+    url_projects = f"https://{jira_domain}/rest/api/3/project"
     try:
-        response = requests.get(url, headers=headers, auth=auth)
-        if response.status_code == 200:
-            projects = response.json()
-            return jsonify({"status": "success", "projects": [{"key": p["key"], "name": p["name"]} for p in projects]})
-        else:
-            return jsonify({"status": "error", "message": response.text}), response.status_code
+        # Fetch all projects
+        response_projects = requests.get(url_projects, headers=headers, auth=auth)
+        if response_projects.status_code != 200:
+            print(f"Error fetching project keys. Jira response: {response_projects.status_code}, {response_projects.text}")
+            return jsonify({"status": "error", "message": response_projects.text}), response_projects.status_code
+
+        projects = response_projects.json()
+        enriched_projects = []
+
+        # For each project, fetch the number of stories
+        for project in projects:
+            project_key = project.get("key")
+            project_name = project.get("name")
+
+            # Fetch story count using Jira Search API
+            url_search = f"https://{jira_domain}/rest/api/3/search"
+            query_params = {
+                "jql": f"project={project_key} AND issuetype=Story",
+                "fields": "id",
+                "maxResults": 0  # Only fetch the total count
+            }
+            try:
+                response_search = requests.get(url_search, headers=headers, auth=auth, params=query_params)
+                if response_search.status_code == 200:
+                    total_stories = response_search.json().get("total", 0)
+                else:
+                    print(f"Error fetching stories for project {project_key}: {response_search.text}")
+                    total_stories = None
+            except requests.RequestException as e:
+                print(f"Error connecting to Jira for project {project_key}: {e}")
+                total_stories = None
+
+            # Add project with story count to the list
+            enriched_projects.append({
+                "key": project_key,
+                "name": project_name,
+                "story_count": total_stories
+            })
+
+        print(f"Fetched {len(enriched_projects)} projects with story counts.")
+        return jsonify({"status": "success", "projects": enriched_projects})
+
     except requests.RequestException as e:
         print(f"Error fetching project keys: {e}")
         return jsonify({"status": "error", "message": "Error connecting to Jira"}), 500
