@@ -367,8 +367,116 @@ def get_all_project_keys():
         print(f"Error fetching project keys: {e}")
         return jsonify({"status": "error", "message": "Error connecting to Jira"}), 500
 
-# Add other APIs like `/get_team_members`, `/get_all_fields`, etc. dynamically configured
-# You can restore them as required and apply the same dynamic configuration logic.
+@app.route('/get_team_members', methods=['GET'])
+def get_team_members():
+    """
+    Fetches all team members (assignable users) for a specific Jira project.
+    """
+    print("Fetching team members for a project.")
+
+    # Get project key and username from query parameters
+    project_key = request.args.get("project_key")
+    username = request.args.get("username")
+
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+
+    if not project_key:
+        return jsonify({"status": "error", "message": "Project key is required"}), 400
+
+    # Fetch user-specific config
+    user_config = get_user_config(username)
+    if not user_config:
+        return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+
+    print(f"Fetching team members for project: {project_key} using config: {user_config}")
+
+    # Jira credentials and headers
+    jira_domain = user_config["domain"]
+    api_token = user_config["api_token"]
+    email = user_config["email"]
+    auth = HTTPBasicAuth(email, api_token)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    # Jira API endpoint to fetch team members
+    url = f"https://{jira_domain}/rest/api/3/user/assignable/search"
+    params = {"project": project_key}
+
+    try:
+        # Send GET request to fetch assignable users
+        response = requests.get(url, headers=headers, auth=auth, params=params)
+        if response.status_code == 200:
+            users = response.json()
+            # Extract usernames and emails
+            team_members = [{"username": user["displayName"], "email": user.get("emailAddress", "N/A")} for user in users]
+            print(f"Fetched {len(team_members)} team members for project: {project_key}")
+            return jsonify({"status": "success", "team_members": team_members})
+        else:
+            print(f"Error fetching team members. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+    except requests.RequestException as e:
+        print(f"Error connecting to Jira for project {project_key}: {e}")
+        return jsonify({"status": "error", "message": "Error connecting to Jira. Please check your network and credentials."}), 500
+    
+@app.route('/get_all_issues_in_project', methods=['GET'])
+def get_all_issues():
+    """
+    Fetches all issues for a specific Jira project.
+    """
+    print("Fetching all issues for a project.")
+
+    # Get project key and username from query parameters
+    project_key = request.args.get("project_key")
+    username = request.args.get("username")
+
+    if not username:
+        return jsonify({"status": "error", "message": "Username is required"}), 400
+
+    if not project_key:
+        return jsonify({"status": "error", "message": "Project key is required"}), 400
+
+    # Fetch user-specific config
+    user_config = get_user_config(username)
+    if not user_config:
+        return jsonify({"status": "error", "message": f"No configuration found for username: {username}"}), 404
+
+    print(f"Fetching issues for project: {project_key} using config: {user_config}")
+
+    # Jira credentials and headers
+    jira_domain = user_config["domain"]
+    api_token = user_config["api_token"]
+    email = user_config["email"]
+    auth = HTTPBasicAuth(email, api_token)
+    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    # Jira API endpoint to fetch issues for a project
+    url = f"https://{jira_domain}/rest/api/3/search"
+    params = {"jql": f"project={project_key}", "maxResults": 100}
+
+    try:
+        # Send GET request to fetch issues
+        response = requests.get(url, headers=headers, auth=auth, params=params)
+        if response.status_code == 200:
+            issues = response.json()
+            # Extract issue details
+            all_issues = [
+                {
+                    "key": issue["key"],
+                    "summary": issue["fields"]["summary"],
+                    "status": issue["fields"]["status"]["name"],
+                    "assignee": issue["fields"]["assignee"]["displayName"] if issue["fields"].get("assignee") else "Unassigned",
+                    "created": issue["fields"]["created"]
+                }
+                for issue in issues.get("issues", [])
+            ]
+            print(f"Fetched {len(all_issues)} issues for project: {project_key}")
+            return jsonify({"status": "success", "issues": all_issues})
+        else:
+            print(f"Error fetching issues. Jira response: {response.status_code}, {response.text}")
+            return jsonify({"status": "error", "message": response.text}), response.status_code
+    except requests.RequestException as e:
+        print(f"Error connecting to Jira for project {project_key}: {e}")
+        return jsonify({"status": "error", "message": "Error connecting to Jira. Please check your network and credentials."}), 500
 
 
 if __name__ == '__main__':
