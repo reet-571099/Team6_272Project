@@ -4,6 +4,7 @@ import multer from "multer";
 import AWS from "aws-sdk";
 import path from "path";
 import { isUserLoggedIn } from "../middleware/auth.js";
+import axios from "axios";
 
 const s3 = new AWS.S3({
 	accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -53,6 +54,28 @@ router.post(
 				ContentType: "audio/mpeg",
 			};
 			const data = await s3.upload(uploadParams).promise();
+			try {
+				await axios.post(
+					`${process.env.STORY_SERVICE_BASE_URL}/api/user-projects`,
+					{
+						user_id: userId,
+						project_id: projectId,
+					},
+					{
+						headers: {
+							"Content-Type": "application/json",
+							"x-api-key": process.env.STORY_SERVICE_API_KEY,
+						},
+					}
+				);
+			} catch (err: any) {
+				console.error(
+					`error while calling create user project db api: ${err.message}`
+				);
+				throw new Error(
+					`error while calling create user project db api: ${err.message}`
+				);
+			}
 			res.status(200).send({
 				message: "File uploaded successfully!",
 				url: data.Location,
