@@ -57,11 +57,6 @@ router.post(
 			try {
 				const userProjectCreationUrl = `${process.env.STORY_SERVICE_BASE_URL}/api/user-projects`;
 				const storyServiceApiKey = process.env.STORY_SERVICE_API_KEY;
-				// TODO: Delete
-				console.log("|||||||||||||||||||||||||||||||");
-				console.log("userProjectCreationUrl: ", userProjectCreationUrl);
-				console.log("storyServiceApiKey: ", storyServiceApiKey);
-				console.log("|||||||||||||||||||||||||||||||");
 				await axios.post(
 					userProjectCreationUrl,
 					{
