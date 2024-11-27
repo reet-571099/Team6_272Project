@@ -116,6 +116,14 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 router.post("/user-projects", async (req, res) => {
 	try {
 		if (req.headers["x-api-key"] !== process.env.STORY_SERVICE_API_KEY) {
+			// TODO: Delete
+			console.log("***************************");
+			console.log("x-api-key: ", req.headers["x-api-key"]);
+			console.log(
+				"STORY_SERVICE_API_KEY: ",
+				process.env.STORY_SERVICE_API_KEY
+			);
+			console.log("***************************");
 			return res.status(400).json({
 				message: "invalid x-api-key!",
 			});
@@ -127,6 +135,10 @@ router.post("/user-projects", async (req, res) => {
 			active_stories,
 			inactive_stories,
 		} = req.body;
+		// TODO: Delete
+		console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+		console.log("req.body: ", req.body);
+		console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
 		const userProject = new UserProject({
 			user_id,
@@ -135,6 +147,10 @@ router.post("/user-projects", async (req, res) => {
 			active_stories,
 			inactive_stories,
 		});
+		// TODO: Delete
+		console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
+		console.log("userProject: ", userProject);
+		console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
 
 		await userProject.save();
 

@@ -55,8 +55,15 @@ router.post(
 			};
 			const data = await s3.upload(uploadParams).promise();
 			try {
+				const userProjectCreationUrl = `${process.env.STORY_SERVICE_BASE_URL}/api/user-projects`;
+				const storyServiceApiKey = process.env.STORY_SERVICE_API_KEY;
+				// TODO: Delete
+				console.log("|||||||||||||||||||||||||||||||");
+				console.log("userProjectCreationUrl: ", userProjectCreationUrl);
+				console.log("storyServiceApiKey: ", storyServiceApiKey);
+				console.log("|||||||||||||||||||||||||||||||");
 				await axios.post(
-					`${process.env.STORY_SERVICE_BASE_URL}/api/user-projects`,
+					userProjectCreationUrl,
 					{
 						user_id: userId,
 						project_id: projectId,
@@ -64,7 +71,7 @@ router.post(
 					{
 						headers: {
 							"Content-Type": "application/json",
-							"x-api-key": process.env.STORY_SERVICE_API_KEY,
+							"x-api-key": storyServiceApiKey,
 						},
 					}
 				);
