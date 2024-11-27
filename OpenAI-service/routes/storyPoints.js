@@ -54,23 +54,23 @@ router.get("/getActiveStories", async (req, res) => {
 	}
 });
 
-router.get("/stories/:project_id", async (req, res) => {
-	const { project_id } = req.params;
-	try {
-		const stories = await UserStory.find({ project_id });
+// router.get("/stories/:project_id", async (req, res) => {
+// 	const { project_id } = req.params;
+// 	try {
+// 		const stories = await UserStory.find({ project_id });
 
-		if (stories.length === 0) {
-			return res
-				.status(404)
-				.json({ message: "No stories found for this project ID" });
-		}
+// 		if (stories.length === 0) {
+// 			return res
+// 				.status(404)
+// 				.json({ message: "No stories found for this project ID" });
+// 		}
 
-		res.status(200).json({ stories });
-	} catch (error) {
-		console.error("Error fetching stories:", error.message);
-		res.status(500).json({ error: "Server error while fetching stories" });
-	}
-});
+// 		res.status(200).json({ stories });
+// 	} catch (error) {
+// 		console.error("Error fetching stories:", error.message);
+// 		res.status(500).json({ error: "Server error while fetching stories" });
+// 	}
+// });
 
 router.put("/stories/:story_id/:project_id", async (req, res) => {
 	const { story_id, project_id } = req.params;
@@ -88,7 +88,7 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 		updateFields.description = updateData.description;
 	}
 
-	try {
+    try {
 		const updatedStory = await UserStory.findOneAndUpdate(
 			{ story_id, project_id },
 			{ $set: updateFields },
@@ -113,9 +113,11 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 	}
 });
 
-router.post("/user-projects", async (req, res) => {
-	try {
-		if (req.headers["x-api-key"] !== process.env.STORY_SERVICE_API_KEY) {
+router.post('/user-projects', async (req, res) => {
+    try {
+        const { user_id, project_id, total_stories, active_stories, inactive_stories } = req.body;
+       
+        if (!req.headers["x-api-key"] || req.headers["x-api-key"] !== process.env.STORY_SERVICE_API_KEY) {
 			// TODO: Delete
 			console.log("x-api-key: ", req.headers["x-api-key"]);
 			console.log(
@@ -126,39 +128,36 @@ router.post("/user-projects", async (req, res) => {
 				message: "invalid x-api-key!",
 			});
 		}
-		const {
-			user_id,
-			project_id,
-			total_stories,
-			active_stories,
-			inactive_stories,
-		} = req.body;
-		// TODO: Delete
-		console.log("req.body: ", req.body);
 
-		const userProject = new UserProject({
-			user_id,
-			project_id,
-			total_stories,
-			active_stories,
-			inactive_stories,
-		});
-		// TODO: Delete
-		console.log("userProject: ", userProject);
+    
+        const existingProject = await UserProject.findOne({ user_id, project_id });
 
-		await userProject.save();
-		// TODO: Delete
-		console.log("1111111111111111111111111111");
-		console.log("userProject2: ", userProject);
+        if (existingProject) {
+            return res.status(200).json({ 
+                message: 'Entry already exists', 
+                data: existingProject 
+            });
+        }
 
-		res.status(201).json({
-			message: "User project created successfully",
-			data: userProject,
-		});
-	} catch (error) {
-		console.error(error);
-		res.status(500).json({ error: "Failed to create user project" });
-	}
+    
+        const userProject = new UserProject({
+            user_id,
+            project_id,
+            total_stories,
+            active_stories,
+            inactive_stories,
+        });
+
+        await userProject.save();
+
+        res.status(201).json({ 
+            message: 'User project created successfully', 
+            data: userProject 
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to create user project' });
+    }
 });
 
 router.post("/pushToJIRA", async (req, res) => {
