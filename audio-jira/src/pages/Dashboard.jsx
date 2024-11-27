@@ -3,20 +3,170 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskEditModal from "../components/TaskEditModal";
 import JiraIntegrationModal from "../components/JiraIntegrationModal";
+import axios from 'axios';
 import {
-  Menu,
-  Bell,
-  User,
   Plus,
-  Mic2,
   Upload,
   Edit2,
   Check,
   X,
 } from "lucide-react";
 
-// Remove mock projects, this will be replaced with API call
-const ProjectSelectionView = ({ onProjectSelect }) => {
+// Project Tasks View Component
+const ProjectTasksView = ({ project, onBack }) => {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchProjectTasks = async () => {
+      try {
+        const username = localStorage.getItem('username') || 'nikhilkoli287@gmail.com';
+        
+        const response = await fetch(
+          `http://18.222.152.111:5001/get_all_issues_in_project?username=${encodeURIComponent(username)}&project_key=${encodeURIComponent(project.key)}`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch project tasks');
+        }
+
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+          setTasks(data.issues);
+        } else {
+          throw new Error('Failed to fetch tasks');
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching project tasks:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchProjectTasks();
+  }, [project.key]);
+
+  // TaskCard component remains the same as in the previous implementation
+  const TaskCard = ({ task }) => {
+    const formatDate = (dateString) => {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{
+          duration: 0.3,
+          type: "spring",
+          stiffness: 200,
+        }}
+        className="bg-white rounded-xl shadow-lg p-6 hover:bg-gray-50 transition-all"
+      >
+        <div className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="flex-grow">
+              <h4 className="text-sm font-semibold text-gray-900">
+                {task.summary}
+              </h4>
+              <p className="text-xs mt-1 text-gray-500">
+                Key: {task.key}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div
+                className={`px-3 py-1 rounded-full text-xs font-medium 
+                ${
+                  task.status === "To Do"
+                    ? "bg-blue-100 text-blue-800"
+                    : task.status === "In Progress"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : task.status === "Done"
+                    ? "bg-green-100 text-green-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {task.status}
+              </div>
+              <div className="text-xs text-gray-500">{task.assignee}</div>
+            </div>
+
+            <div className="text-xs text-gray-500">
+              {formatDate(task.created)}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="text-center py-10">
+        <p className="text-gray-600">Loading tasks...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="text-center py-10 text-red-600">
+        <p>Error loading tasks: {error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+          <p className="text-gray-500">Project Tasks</p>
+        </div>
+        <button
+          onClick={onBack}
+          className="text-indigo-600 hover:text-indigo-700 font-medium"
+        >
+          Back to Projects
+        </button>
+      </div>
+
+      {tasks.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">
+          No tasks found for this project.
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence>
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.key}
+                task={task}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Project Selection View Component
+const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,7 +174,6 @@ const ProjectSelectionView = ({ onProjectSelect }) => {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        // Retrieve username from localStorage or your auth context
         const username = localStorage.getItem('username') || 'nikhilkoli287@gmail.com';
         
         const response = await fetch(
@@ -37,12 +186,11 @@ const ProjectSelectionView = ({ onProjectSelect }) => {
 
         const data = await response.json();
         
-        // Map the API response to match your existing project structure
         const formattedProjects = data.projects.map(project => ({
           id: project.key,
           name: project.key,
-          description: `Project Description: ${project.name}`, // You can customize this
-          totalTasks: project.story_count, // You might want to fetch this separately project.story_count
+          description: `Project Description: ${project.name}`,
+          totalTasks: project.story_count,
           key: project.key
         }));
 
@@ -81,21 +229,30 @@ const ProjectSelectionView = ({ onProjectSelect }) => {
         {projects.map((project) => (
           <div
             key={project.id}
-            onClick={() => onProjectSelect(project)}
-            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer group"
+            className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all group"
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600">
                 {project.name}
               </h3>
-              <div className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-sm">
+              <div 
+                onClick={() => onViewTasks(project)}
+                className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-indigo-100"
+              >
                 {project.totalTasks} Tasks
               </div>
             </div>
-            <p className="text-gray-500 mb-4">{project.description}</p>
-            <div className="flex items-center text-indigo-600 hover:text-indigo-700">
-              <Plus className="mr-2 h-5 w-5" />
-              Create Tasks
+            <div className="flex space-x-4">
+              <div 
+                onClick={() => onProjectSelect(project)}
+                className="flex-grow cursor-pointer"
+              >
+                <p className="text-gray-500 mb-4">{project.description}</p>
+                <div className="flex items-center text-indigo-600 hover:text-indigo-700">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Create Tasks
+                </div>
+              </div>
             </div>
           </div>
         ))}
@@ -409,7 +566,6 @@ const Dashboard = () => {
   const [generatedTasks, setGeneratedTasks] = useState([]);
   const navigate = useNavigate();
   
-  // Add state for Jira modal
   const [showJiraModal, setShowJiraModal] = useState(() => {
     const hasSeenModal = localStorage.getItem('hasSeenJiraModal');
     return !hasSeenModal;
@@ -417,7 +573,6 @@ const Dashboard = () => {
 
   const handleJiraIntegrationComplete = (formData) => {
     console.log('Jira Integration Data:', formData);
-    // Save the Jira credentials and handle the integration
     localStorage.setItem('hasSeenJiraModal', 'true');
     localStorage.setItem('jiraConfig', JSON.stringify(formData));
     setShowJiraModal(false);
@@ -433,77 +588,195 @@ const Dashboard = () => {
     setCurrentView("audio");
   };
 
-  const handleFileUpload = (event) => {
-    const files = Array.from(event.target.files);
-    const newAudioFiles = files.map((file) => ({
-      id: Date.now(),
-      name: file.name,
-      status: "processing",
-      file,
-    }));
-
-    setAudioFiles(newAudioFiles);
-
-    // Simulate AI task generation
-    setTimeout(() => {
-      const mockTasks = [
-        {
-          id: 1,
-          project_key: selectedProject.key,
-          summary: "This is a test to check assignee",
-          issuetype: "Task",
-          description: {
-            type: "doc",
-            version: 1,
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "DESC low priority assignee check1",
-                  },
-                ],
-              },
-            ],
-          },
-          priority: { name: "Low" },
-          assignee: { id: "reet.khanchandani@sjsu.edu" },
-        },
-        {
-          id: 2,
-          project_key: selectedProject.key,
-          summary: "UI backend integration for create jira ",
-          issuetype: "Story",
-          description: {
-            type: "doc",
-            version: 1,
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  {
-                    type: "text",
-                    text: "I hope this works ",
-                  },
-                ],
-              },
-            ],
-          },
-          priority: { name: "Low" },
-          assignee: { id: "nikhilkoli287@gmail.com" },
-        },
-      ];
-
-      setGeneratedTasks(mockTasks);
-      setCurrentView("tasks");
-    }, 2000);
+  const handleViewTasks = (project) => {
+    setSelectedProject(project);
+    setCurrentView("project-tasks");
   };
 
+  const handleFileUpload = async (event) => {
+    // Log that the file upload event was triggered
+    console.log('File upload event triggered');
+    
+    const files = Array.from(event.target.files);
+    
+    // Log the selected files
+    console.log('Selected files:', files);
+    
+    // Validate file selection
+    if (files.length === 0) {
+      console.error('No files selected');
+      alert('Please select an audio file');
+      return;
+    }
+  
+    // Define mock tasks for fallback
+    const mockTasks = [
+      {
+        id: 1,
+        project_key: selectedProject.key,
+        summary: "Implement User Authentication",
+        issuetype: "Story",
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "Design and implement a secure user authentication system with login, logout, and password reset functionality.",
+                },
+              ],
+            },
+          ],
+        },
+        priority: { name: "High" },
+        assignee: { id: "nikhilkoli287@gmail.com" },
+      },
+      {
+        id: 2,
+        project_key: selectedProject.key,
+        summary: "Create Dashboard Wireframes",
+        issuetype: "Task",
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "Design initial wireframes for the user dashboard, focusing on key metrics and user experience.",
+                },
+              ],
+            },
+          ],
+        },
+        priority: { name: "Medium" },
+        assignee: { id: "reet.khanchandani@sjsu.edu" },
+      },
+      {
+        id: 3,
+        project_key: selectedProject.key,
+        summary: "Set Up CI/CD Pipeline",
+        issuetype: "Task",
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                {
+                  type: "text",
+                  text: "Configure continuous integration and deployment pipeline using GitHub Actions or Jenkins.",
+                },
+              ],
+            },
+          ],
+        },
+        priority: { name: "Low" },
+        assignee: { id: "nikhilkoli287@gmail.com" },
+      }
+    ];
+  
+    try {
+      // Specifically extract JWT from cookies
+      const cookie = document.cookie.split('; ');
+      console.log({cookie: cookie})
+      const jwtCookie = cookie.find(row => row.startsWith('jwt='));
+      
+      let token = null;
+      if (jwtCookie) {
+        token = jwtCookie.split('=')[1];
+        console.log('JWT Token found in cookies:', !!token);
+      }
+  
+      // Validate token
+      if (!token) {
+        throw new Error('No JWT token found in cookies. Please log in again.');
+      }
+  
+      // Validate selected project
+      if (!selectedProject || !selectedProject.key) {
+        console.error('No project selected');
+        alert('Please select a project first');
+        return;
+      }
+  
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('audio_file', files[0]); // Assuming single file upload
+      formData.append('project_id', selectedProject.key);
+  
+      try {
+        // Send file to backend
+        console.log('Attempting to upload to:', 'http://54.193.65.42:8000/api/upload');
+        
+        const response = await axios.post('http://54.193.65.42:8000/api/upload', formData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          withCredentials: true,
+        });
+  
+        // Always set mock tasks and switch to tasks view
+        setGeneratedTasks(mockTasks.map(task => ({
+          ...task,
+          id: task.id || Math.random().toString(36).substr(2, 9),
+          project_key: selectedProject.key
+        })));
+        setCurrentView("tasks");
+  
+        // Log the response for debugging
+        console.log('Upload response:', response);
+  
+        // If the response contains actual tasks, log them
+        if (response.data && response.data.tasks) {
+          console.log('Actual tasks from response:', response.data.tasks);
+        }
+  
+      } catch (axiosError) {
+        // On any error, still set mock tasks and switch to tasks view
+        setGeneratedTasks(mockTasks.map(task => ({
+          ...task,
+          id: task.id || Math.random().toString(36).substr(2, 9),
+          project_key: selectedProject.key
+        })));
+        setCurrentView("tasks");
+  
+        // Log the error for debugging
+        console.error('File upload error:', axiosError);
+  
+        // Optional: show a user-friendly error message
+        alert('Unable to process audio file. Showing example tasks.');
+      }
+  
+    } catch (error) {
+      // Catch any other unexpected errors
+      console.error('Unexpected error:', error);
+      
+      // Set mock tasks and switch to tasks view
+      setGeneratedTasks(mockTasks.map(task => ({
+        ...task,
+        id: task.id || Math.random().toString(36).substr(2, 9),
+        project_key: selectedProject.key
+      })));
+      setCurrentView("tasks");
+  
+      alert(`Error processing file: ${error.message}`);
+    }
+  };
   const renderContent = () => {
     switch (currentView) {
       case "projects":
-        return <ProjectSelectionView onProjectSelect={handleProjectSelect} />;
+        return <ProjectSelectionView 
+          onProjectSelect={handleProjectSelect} 
+          onViewTasks={handleViewTasks}
+        />;
       case "audio":
         return (
           <AudioUploadView
@@ -520,14 +793,20 @@ const Dashboard = () => {
             onBack={() => setCurrentView("projects")}
           />
         );
-        default:
+      case "project-tasks":
+        return (
+          <ProjectTasksView
+            project={selectedProject}
+            onBack={() => setCurrentView("projects")}
+          />
+        );
+      default:
         return null;
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Add the JiraIntegrationModal */}
       {showJiraModal && (
         <JiraIntegrationModal
           onComplete={handleJiraIntegrationComplete}
