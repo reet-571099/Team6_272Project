@@ -25,7 +25,7 @@ export const googleCallback = (
 		console.log("*******************************");
 		// Set JWT in cookie
 		res.cookie("jwt", token, {
-			httpOnly: true,
+			httpOnly: false,
 			secure: process.env.NODE_ENV === "prod",
 			sameSite: "lax",
 			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
