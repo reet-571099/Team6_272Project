@@ -1,15 +1,19 @@
-import "./config/envLoader.js";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import mongoose from "mongoose";
 import passport from "passport";
 import UserRoutes from "./users/user.controller.js";
 import UploadRoutes from "./upload/upload.js";
 
 const app = express();
+
+const corsOptions = {
+	origin: "http://localhost:3000",
+	credentials: true,
+};
+
+app.use(cors(corsOptions)); // Apply CORS configuration
 app.use(express.json());
-app.use(cors());
 app.use(cookieParser());
 app.use(passport.initialize());
 
