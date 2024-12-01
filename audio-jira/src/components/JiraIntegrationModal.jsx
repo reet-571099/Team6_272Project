@@ -9,10 +9,28 @@ const CustomAlert = ({ children, className = "" }) => (
   </div>
 );
 
+const SuccessAnimation = () => (
+  <div className="fixed inset-0 bg-white/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm">
+    <div className="w-32 h-32 relative">
+      <svg className="absolute inset-0 animate-ping" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" stroke="#4CAF50" strokeWidth="8" strokeDasharray="20 10" className="animate-pulse"/>
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center">
+          <Check className="w-16 h-16 text-white" />
+        </div>
+      </div>
+    </div>
+    <h2 className="text-2xl font-bold text-gray-800 mt-6">Integration Successful!</h2>
+    <p className="text-gray-600 mt-2">Redirecting to dashboard...</p>
+  </div>
+);
+
 const JiraIntegrationModal = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     jiraUrl: "",
     email: "",
@@ -35,8 +53,8 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
     setIsLoading(true);
     setError("");
 
-     // Validate Jira URL
-     if (!isValidJiraUrl(formData.jiraUrl)) {
+    // Validate Jira URL
+    if (!isValidJiraUrl(formData.jiraUrl)) {
       setError("Invalid Jira URL. The URL must include '.atlassian.net'.");
       setIsLoading(false);
       return;
@@ -59,7 +77,6 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
           domain: domain,
         }),
       });
-      console.log(response)
 
       if (response.status === 401) {
         // Display specific error message for 401 status
@@ -71,7 +88,6 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
         // Validation successful
         setStep(2); // Proceed to the next step
         setError(""); // Clear any existing error messages
-        alert("Validation successful. User can connect to Jira.");
         return;
       }
 
@@ -86,54 +102,57 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleSubmit = () => {
+    // Show success animation
+    setShowSuccess(true);
 
-    try {
-      const domain = formData.jiraUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
-      const token = getAuthToken();
-
-      const response = await fetch("http://localhost:8000/api/users/validate_user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          username: formData.email,
-          api_token: formData.apiToken,
-          domain: domain,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to validate Jira credentials");
-      }
-
+    // Redirect to dashboard after animation
+    setTimeout(() => {
       onComplete(formData);
-    } catch (err) {
-      setError(err.message || "Failed to complete setup. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+    }, 2500); // 2.5 seconds to show the success animation
   };
+
+  const Step = ({ number, current, title }) => (
+    <div className="flex items-center">
+      <div
+        className={`flex items-center justify-center w-8 h-8 rounded-xl ${
+          number === current
+            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+            : number < current
+            ? "bg-green-500 text-white"
+            : "bg-gray-200 text-gray-600"
+        }`}
+      >
+        {number < current ? <Check className="h-4 w-4" /> : number}
+      </div>
+      <span className="ml-2 text-sm text-gray-600">{title}</span>
+      {number < 2 && (
+        <div className="w-12 h-1 mx-2 bg-gray-200 rounded-full">
+          <div
+            className={`h-full rounded-full ${
+              number < current ? "bg-green-500" : "bg-gray-200"
+            }`}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  // If success animation is showing, render just the success screen
+  if (showSuccess) {
+    return <SuccessAnimation />;
+  }
 
   return (
     <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity z-50">
       <div className="fixed inset-0 z-10 overflow-y-auto">
         <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
           <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
-            {/* Modal Content */}
             <div>
-              {/* Progress Steps */}
               <div className="mb-8">
                 <div className="flex items-center justify-center space-x-4">
                   <Step number={1} current={step} title="Connect" />
-                  <Step number={2} current={step} title="Configure" />
-                  <Step number={3} current={step} title="Verify" />
+                  <Step number={2} current={step} title="Verify" />
                 </div>
               </div>
 
@@ -207,66 +226,7 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                 </div>
               )}
 
-{step === 2 && (
-                <div>
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Configure Defaults
-                    </h3>
-                    <p className="mt-2 text-gray-600">
-                      Set up your default project settings
-                    </p>
-                  </div>
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      setStep(3);
-                    }}
-                  >
-                    <div className="space-y-4">
-                      <InputField
-                        label="Default Project"
-                        placeholder="Project key (e.g., PROJ)"
-                        value={formData.project}
-                        onChange={(e) =>
-                          setFormData({ ...formData, project: e.target.value })
-                        }
-                        required
-                      />
-                      <InputField
-                        label="Default Assignee"
-                        placeholder="Username or email"
-                        value={formData.defaultAssignee}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            defaultAssignee: e.target.value,
-                          })
-                        }
-                      />
-                      <div className="flex justify-end space-x-3 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setStep(1)}
-                          className="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-500 transition-colors"
-                        >
-                          <ArrowLeft className="mr-2 h-4 w-4" />
-                          Back
-                        </button>
-                        <button
-                          type="submit"
-                          className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
-                        >
-                          Next
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {step === 3 && (
+              {step === 2 && (
                 <div>
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900">
@@ -294,28 +254,12 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                           {formData.email}
                         </dd>
                       </div>
-                      <div className="flex justify-between">
-                        <dt className="text-sm font-medium text-gray-500">
-                          Default Project
-                        </dt>
-                        <dd className="text-sm text-gray-900">
-                          {formData.project}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-sm font-medium text-gray-500">
-                          Default Assignee
-                        </dt>
-                        <dd className="text-sm text-gray-900">
-                          {formData.defaultAssignee || "Not set"}
-                        </dd>
-                      </div>
                     </dl>
                   </div>
                   <div className="flex justify-end space-x-3">
                     <button
                       type="button"
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(1)}
                       className="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-500 transition-colors"
                     >
                       <ArrowLeft className="mr-2 h-4 w-4" />
@@ -323,20 +267,10 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
                     </button>
                     <button
                       onClick={handleSubmit}
-                      disabled={isLoading}
-                      className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:opacity-90 transition-all transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                      className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:opacity-90 transition-all transform hover:scale-105"
                     >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                          Connecting...
-                        </>
-                      ) : (
-                        <>
-                          Complete Setup
-                          <Check className="ml-2 h-4 w-4" />
-                        </>
-                      )}
+                      Complete Setup
+                      <Check className="ml-2 h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -348,32 +282,6 @@ const JiraIntegrationModal = ({ onComplete, onSkip }) => {
     </div>
   );
 };
-
-const Step = ({ number, current, title }) => (
-  <div className="flex items-center">
-    <div
-      className={`flex items-center justify-center w-8 h-8 rounded-xl ${
-        number === current
-          ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-          : number < current
-          ? "bg-green-500 text-white"
-          : "bg-gray-200 text-gray-600"
-      }`}
-    >
-      {number < current ? <Check className="h-4 w-4" /> : number}
-    </div>
-    <span className="ml-2 text-sm text-gray-600">{title}</span>
-    {number < 3 && (
-      <div className="w-12 h-1 mx-2 bg-gray-200 rounded-full">
-        <div
-          className={`h-full rounded-full ${
-            number < current ? "bg-green-500" : "bg-gray-200"
-          }`}
-        />
-      </div>
-    )}
-  </div>
-);
 
 const InputField = ({
   label,

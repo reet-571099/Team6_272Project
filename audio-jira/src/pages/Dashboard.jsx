@@ -278,10 +278,6 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
     setIsConfirmed(true);
   };
 
-  // Extract description text
-  const descriptionText =
-    task.description?.content?.[0]?.content?.[0]?.text || "No description";
-
   return (
     <>
       <motion.div
@@ -320,8 +316,8 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="space-y-4">
+  
+        <div className="space-y-4 flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="flex-grow">
               <h4
@@ -329,17 +325,10 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
                   isConfirmed ? "text-green-800 opacity-70" : "text-gray-900"
                 }`}
               >
-                {task.summary}
+                {task.story_name}
               </h4>
-              <p
-                className={`text-xs mt-1 ${
-                  isConfirmed ? "text-green-700 opacity-70" : "text-gray-500"
-                }`}
-              >
-                {descriptionText}
-              </p>
             </div>
-
+  
             {!isConfirmed && (
               <div className="flex items-center space-x-2">
                 <button
@@ -351,7 +340,18 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
               </div>
             )}
           </div>
-
+          
+          <div
+            className={`text-xs mt-1 space-y-1 ${
+              isConfirmed ? "text-green-700 opacity-70" : "text-gray-500"
+            }`}
+          >
+            {/* {task.description.map((desc, index) => (
+              <p key={index}>{desc}</p>
+            ))} */}
+            <p>{task.description}</p>
+          </div>
+  
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <div
@@ -362,11 +362,11 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
                     : "bg-gray-100 text-gray-800"
                 }`}
               >
-                {isConfirmed ? "Created in Jira" : task.priority.name}
+                {isConfirmed ? "Created in Jira" : `${task.story_points} Story Points`}
               </div>
-              <div className="text-xs text-gray-500">{task.issuetype}</div>
+              <div className="text-xs text-gray-500">{task.project_id}</div>
             </div>
-
+  
             {!isConfirmed && (
               <button
                 onClick={handleConfirm}
@@ -393,10 +393,10 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
           </div>
         </div>
       </motion.div>
-
+  
       {/* Task Edit Modal */}
       <TaskEditModal
-        task={task}
+        story={task}
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleSaveEdit}
@@ -425,13 +425,13 @@ const TasksView = ({ project, tasks, onBack }) => {
 
       // Prepare the payload for the API
       const payload = {
-        project_key: confirmedTask.project_key,
-        summary: confirmedTask.summary,
-        issuetype: confirmedTask.issuetype || "Story", 
-        description: confirmedTask.description?.content?.[0]?.content?.[0]?.text || "",
-        assignee: confirmedTask.assignee?.id || username,
+        project_key: confirmedTask.project_id,
+        summary: confirmedTask.story_name,
+        issuetype: "Story", 
+        description: confirmedTask.description,
+        assignee: username,
         labels: ["AI-Generated"],
-        priority: confirmedTask.priority?.name ? { name: confirmedTask.priority.name } : "Low",
+        priority: confirmedTask?.priority?.name ? { name: confirmedTask.priority.name } : "Low",
       };
 
       // Make the API call to create Jira story
@@ -564,6 +564,8 @@ const Dashboard = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [audioFiles, setAudioFiles] = useState([]);
   const [generatedTasks, setGeneratedTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeStories, setActiveStories] = useState(0);
   const navigate = useNavigate();
   
   const [showJiraModal, setShowJiraModal] = useState(() => {
@@ -593,6 +595,37 @@ const Dashboard = () => {
     setCurrentView("project-tasks");
   };
 
+  const pollActiveStories = async (userId, projectId) => {
+    try {
+      const response = await axios.get(`http://localhost:3001/api/getActiveStories`, {
+        params: {
+          user_id: userId,
+          project_id: projectId
+        }
+      });
+      
+      setActiveStories(response.data.activeStories);
+      return response.data.activeStories;
+    } catch (error) {
+      console.error('Error polling active stories:', error);
+      return 0;
+    }
+  };
+  
+  const fetchStories = async (projectId) => {
+    try {
+      const response = await axios.get(`http://localhost:3001/api/stories/${projectId}`);
+      console.log(response.data.stories)
+      setGeneratedTasks(response.data.stories);
+      setCurrentView("tasks");
+      console.log(generatedTasks);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+      setIsLoading(false);
+    }
+  };
+
   const handleFileUpload = async (event) => {
     // Log that the file upload event was triggered
     console.log('File upload event triggered');
@@ -608,79 +641,6 @@ const Dashboard = () => {
       alert('Please select an audio file');
       return;
     }
-  
-    // Define mock tasks for fallback
-    const mockTasks = [
-      {
-        id: 1,
-        project_key: selectedProject.key,
-        summary: "Implement User Authentication",
-        issuetype: "Story",
-        description: {
-          type: "doc",
-          version: 1,
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                {
-                  type: "text",
-                  text: "Design and implement a secure user authentication system with login, logout, and password reset functionality.",
-                },
-              ],
-            },
-          ],
-        },
-        priority: { name: "High" },
-        assignee: { id: "nikhilkoli287@gmail.com" },
-      },
-      {
-        id: 2,
-        project_key: selectedProject.key,
-        summary: "Create Dashboard Wireframes",
-        issuetype: "Task",
-        description: {
-          type: "doc",
-          version: 1,
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                {
-                  type: "text",
-                  text: "Design initial wireframes for the user dashboard, focusing on key metrics and user experience.",
-                },
-              ],
-            },
-          ],
-        },
-        priority: { name: "Medium" },
-        assignee: { id: "reet.khanchandani@sjsu.edu" },
-      },
-      {
-        id: 3,
-        project_key: selectedProject.key,
-        summary: "Set Up CI/CD Pipeline",
-        issuetype: "Task",
-        description: {
-          type: "doc",
-          version: 1,
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                {
-                  type: "text",
-                  text: "Configure continuous integration and deployment pipeline using GitHub Actions or Jenkins.",
-                },
-              ],
-            },
-          ],
-        },
-        priority: { name: "Low" },
-        assignee: { id: "nikhilkoli287@gmail.com" },
-      }
-    ];
   
     try {
       // Specifically extract JWT from cookies
@@ -710,66 +670,38 @@ const Dashboard = () => {
       const formData = new FormData();
       formData.append('audio_file', files[0]); // Assuming single file upload
       formData.append('project_id', selectedProject.key);
-  
-      try {
-        // Send file to backend
-        console.log('Attempting to upload to:', 'http://54.193.65.42:8000/api/upload');
-        
-        const response = await axios.post('http://54.193.65.42:8000/api/upload', formData, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-          withCredentials: true,
-        });
-  
-        // Always set mock tasks and switch to tasks view
-        setGeneratedTasks(mockTasks.map(task => ({
-          ...task,
-          id: task.id || Math.random().toString(36).substr(2, 9),
-          project_key: selectedProject.key
-        })));
-        setCurrentView("tasks");
-  
-        // Log the response for debugging
-        console.log('Upload response:', response);
-  
-        // If the response contains actual tasks, log them
-        if (response.data && response.data.tasks) {
-          console.log('Actual tasks from response:', response.data.tasks);
-        }
-  
-      } catch (axiosError) {
-        // On any error, still set mock tasks and switch to tasks view
-        setGeneratedTasks(mockTasks.map(task => ({
-          ...task,
-          id: task.id || Math.random().toString(36).substr(2, 9),
-          project_key: selectedProject.key
-        })));
-        setCurrentView("tasks");
-  
-        // Log the error for debugging
-        console.error('File upload error:', axiosError);
-  
-        // Optional: show a user-friendly error message
-        alert('Unable to process audio file. Showing example tasks.');
-      }
-  
+
+
+      setIsLoading(true);
+
+      // const response = await axios.post('http://54.193.65.42:8000/api/upload', formData, {
+      //   headers: {
+      //     'Authorization': `Bearer ${token}`,
+      //     'Content-Type': 'multipart/form-data',
+      //   },
+      //   withCredentials: true,
+      // });
+
+      // If upload is successful, start polling
+
+      // if (response.status === 200) {
+        const pollInterval = setInterval(async () => {
+          const activeStoriesCount = await pollActiveStories('123456', 'P001');
+          
+          if (activeStoriesCount > 0) {
+            clearInterval(pollInterval);
+            await fetchStories('P001');
+          }
+        }, 10000); // Poll every 10 seconds
+      // }
+
     } catch (error) {
-      // Catch any other unexpected errors
       console.error('Unexpected error:', error);
-      
-      // Set mock tasks and switch to tasks view
-      setGeneratedTasks(mockTasks.map(task => ({
-        ...task,
-        id: task.id || Math.random().toString(36).substr(2, 9),
-        project_key: selectedProject.key
-      })));
-      setCurrentView("tasks");
-  
+      setIsLoading(false);
       alert(`Error processing file: ${error.message}`);
     }
   };
+  
   const renderContent = () => {
     switch (currentView) {
       case "projects":
@@ -819,6 +751,12 @@ const Dashboard = () => {
           {renderContent()}
         </div>
       </div>
+
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 flex-col">
+          <div className="w-16 h-16 border-4 border-t-4 border-blue-500 border-opacity-25 rounded-full animate-spin"></div>
+        </div>
+      )}
     </div>
   );
 };

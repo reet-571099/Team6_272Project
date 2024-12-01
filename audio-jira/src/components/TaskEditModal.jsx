@@ -1,49 +1,47 @@
 import React, { useState } from "react";
 import { Edit2, X, Check } from "lucide-react";
+import axios from "axios";
 
-const TaskEditModal = ({ task, isOpen, onClose, onSave }) => {
-  const [editedTask, setEditedTask] = useState({
-    summary: task.summary,
-    description: task.description?.content?.[0]?.content?.[0]?.text || "",
-    priority: task.priority?.name || "Medium",
-    issuetype: task.issuetype || "Task",
-    assignee: task.assignee?.id || "",
-  });
+const TaskEditModal = ({ story, isOpen, onClose, onSave }) => {
+  const [editedStory, setEditedStory] = useState(story);
 
   const handleChange = (field, value) => {
-    setEditedTask((prev) => ({
+    setEditedStory((prev) => ({
       ...prev,
       [field]: value,
     }));
   };
 
-  const handleSave = () => {
-    const updatedTask = {
-      ...task,
-      summary: editedTask.summary,
-      description: {
-        type: "doc",
-        version: 1,
-        content: [
-          {
-            type: "paragraph",
-            content: [
-              {
-                type: "text",
-                text: editedTask.description,
-              },
-            ],
-          },
-        ],
-      },
-      priority: { name: editedTask.priority },
-      issuetype: editedTask.issuetype,
-      assignee: { id: editedTask.assignee },
+
+  const handleSave = async () => {
+    const updatedStory = {
+      ...story,
+      story_name: editedStory.story_name,
+      description: editedStory.description,
+      story_points: parseInt(editedStory.story_points, 10),
+      project_id: editedStory.project_id,
     };
 
-    onSave(updatedTask);
-    onClose();
+    try {
+      const response = await axios.put(
+        `http://localhost:3001/api/stories/${story.story_id}/${editedStory.project_id}`,
+        updatedStory,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("Story updated successfully:", response.data);
+
+      onSave(updatedStory);
+      onClose();
+    } catch (error) {
+      console.error("Failed to update story:", error);
+      alert("An error occurred while saving the changes. Please try again.");
+    }
   };
+
 
   if (!isOpen) return null;
 
@@ -53,7 +51,7 @@ const TaskEditModal = ({ task, isOpen, onClose, onSave }) => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <Edit2 className="mr-2 h-5 w-5 text-indigo-600" />
-            Edit Task
+            Edit Story
           </h2>
           <button
             onClick={onClose}
@@ -64,17 +62,17 @@ const TaskEditModal = ({ task, isOpen, onClose, onSave }) => {
         </div>
 
         <div className="space-y-4">
-          {/* Summary Input */}
+          {/* Story Name Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Summary
+              Story Name
             </label>
             <input
               type="text"
-              value={editedTask.summary}
-              onChange={(e) => handleChange("summary", e.target.value)}
+              value={editedStory.story_name}
+              onChange={(e) => handleChange("story_name", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Enter task summary"
+              placeholder="Enter story name"
             />
           </div>
 
@@ -84,58 +82,43 @@ const TaskEditModal = ({ task, isOpen, onClose, onSave }) => {
               Description
             </label>
             <textarea
-              value={editedTask.description}
+              value={editedStory.description}
               onChange={(e) => handleChange("description", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Enter task description"
-              rows="3"
+              placeholder="Enter story description"
+              rows="5"
             />
           </div>
 
-          {/* Priority Dropdown */}
+          {/* Story Points Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
+              Story Points
             </label>
             <select
-              value={editedTask.priority}
-              onChange={(e) => handleChange("priority", e.target.value)}
+              value={editedStory.story_points}
+              onChange={(e) => handleChange("story_points", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
+              {[1, 2, 3, 4, 5, 8, 13].map((points) => (
+                <option key={points} value={points}>
+                  {points}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* Issue Type Dropdown */}
+          {/* Project ID Input */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Issue Type
-            </label>
-            <select
-              value={editedTask.issuetype}
-              onChange={(e) => handleChange("issuetype", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="Task">Task</option>
-              <option value="Bug">Bug</option>
-              <option value="Story">Story</option>
-              <option value="Epic">Epic</option>
-            </select>
-          </div>
-
-          {/* Assignee Input */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assignee
+              Project ID
             </label>
             <input
               type="text"
-              value={editedTask.assignee}
-              onChange={(e) => handleChange("assignee", e.target.value)}
+              value={editedStory.project_id}
+              onChange={(e) => handleChange("project_id", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Enter assignee email"
+              placeholder="Enter project ID"
             />
           </div>
         </div>
