@@ -34,9 +34,14 @@ const updateActiveStories = async (userId, projectId, activeStories) => {
     }
 };
 
-const getActiveStories = async(userId, projectId) => {
-    const userProject = await UserProject.findOne({user_id: userId, project_id: projectId});
-    return userProject.active_stories;
-}
+const getActiveStories = async (userId, projectId) => {
+  const userProject = await UserProject.findOne({ user_id: userId, project_id: projectId });
+  
+  if (!userProject) {
+      return 0;
+  }
+
+  return userProject.active_stories;
+};
 
 module.exports = { parseAndStoreStories, updateActiveStories, getActiveStories };

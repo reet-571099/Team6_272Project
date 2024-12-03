@@ -19,39 +19,60 @@ dotenv.config();
 const router = express.Router();
 
 // Route to generate story points from input file
-router.get("/generate-story-points", async (req, res) => {
-	try {
-		const filePath = path.join(__dirname, "../transcript.txt");
-		const fileContent = fs.readFileSync(filePath, "utf-8");
-		//const { project_id, user_id } = req.query;
-		const user_id = "123456";
-		const project_id = "P001";
-		if (!project_id) {
-			return res.status(400).json({ error: "Project ID is required" });
-		}
-		const stories = await generateUserStories(fileContent, project_id);
-		const savedStories = await parseAndStoreStories(stories, project_id);
-		await updateActiveStories(user_id, project_id, stories.length);
-		res.status(200).json({
-			message: "Stories saved in DB",
-			stories: savedStories,
-		});
-	} catch (error) {
-		res.status(500).json({ error: "Failed to generate stories", error });
-	}
+router.get('/generate-story-points', async (req, res) => {
+    try {
+        const filePath = path.join(__dirname, '../transcript.txt');
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        const { project_id, user_id } = req.query;
+        // const user_id = "123456";
+        // const project_id = "P001"
+        if (!project_id) {
+            return res.status(400).json({ error: 'Project ID is required' });
+        }
+        const stories = await generateUserStories(fileContent, project_id);
+        const savedStories = await parseAndStoreStories(stories, project_id);
+        await updateActiveStories(user_id, project_id, stories.length);
+        res.status(200).json({
+            message: 'Stories saved in DB',
+            stories: savedStories,
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate stories', error });
+    }
 });
 
-router.get("/getActiveStories", async (req, res) => {
-	try {
-		//const {user_id, project_id} = req.query;
-		const user_id = "123456";
-		const project_id = "P001";
-		const activePoints = await getActiveStories(user_id, project_id);
-		res.status(200).json({ activeStories: activePoints });
-	} catch (err) {
-		console.log("Some error occured", err);
-		res.status(500).json({ error: "Failed to get active stories", err });
-	}
+router.get('/getActiveStories', async (req, res) => {
+    try {
+        const { user_id, project_id } = req.query;
+        console.log("User ID:", user_id, "Project ID:", project_id);
+
+        const activePoints = await getActiveStories(user_id, project_id);
+
+        if (!activePoints || activePoints.length === 0) {
+            return res.status(200).json({ message: "No active stories exist", activeStories: [] });
+        }
+
+        res.status(200).json({ activeStories: activePoints });
+    } catch (err) {
+        console.error("Some error occurred:", err);
+        res.status(500).json({ error: 'Failed to get active stories' });
+    }
+});
+
+router.get('/stories/:project_id', async (req, res) => {
+    const { project_id } = req.params;  
+    try {
+        const stories = await UserStory.find({ project_id });
+
+        if (stories.length === 0) {
+            return res.status(404).json({ message: 'No stories found for this project ID' });
+        }
+
+        res.status(200).json({ stories });
+    } catch (error) {
+        console.error('Error fetching stories:', error.message);
+        res.status(500).json({ error: 'Server error while fetching stories' });
+    }
 });
 
 // router.get("/stories/:project_id", async (req, res) => {
@@ -160,8 +181,9 @@ router.post('/user-projects', async (req, res) => {
     }
 });
 
-router.post("/pushToJIRA", async (req, res) => {
-	const { story_id, project_id, userId } = req.body;
+
+router.post('/pushToJIRA', async (req, res) => {
+    const { story_id, project_id, userId } = req.body;
 
 	try {
 		const story = await UserStory.findOne({ story_id, project_id });
