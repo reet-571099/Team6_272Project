@@ -96,11 +96,15 @@ router.get('/stories/:project_id', async (req, res) => {
 router.put("/stories/:story_id/:project_id", async (req, res) => {
 	const { story_id, project_id } = req.params;
 	const updateData = req.body;
+
+
 	if (!updateData || (!updateData.story_name && !updateData.description)) {
 		return res
 			.status(400)
 			.json({ message: "Please provide valid data to update" });
 	}
+
+	
 	const updateFields = {};
 	if (updateData.story_name) {
 		updateFields.story_name = updateData.story_name;
@@ -109,12 +113,14 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 		updateFields.description = updateData.description;
 	}
 
-    try {
+	try {
+
 		const updatedStory = await UserStory.findOneAndUpdate(
 			{ story_id, project_id },
 			{ $set: updateFields },
-			{ new: true }
+			{ new: true } 
 		);
+
 
 		if (!updatedStory) {
 			return res
@@ -122,9 +128,11 @@ router.put("/stories/:story_id/:project_id", async (req, res) => {
 				.json({ message: "Story not found or invalid IDs" });
 		}
 
+		const allStories = await UserStory.find({ project_id });
+
 		res.status(200).json({
 			message: "Story updated successfully",
-			updatedStory,
+			allStories, 
 		});
 	} catch (error) {
 		console.error(error);
@@ -183,15 +191,19 @@ router.post('/user-projects', async (req, res) => {
 
 
 router.post('/pushToJIRA', async (req, res) => {
-    const { story_id, project_id, userId } = req.body;
+	const { story_id, project_id, userId } = req.body;
 
 	try {
+	
 		const story = await UserStory.findOne({ story_id, project_id });
 		if (!story) {
 			return res.status(404).json({ error: "Story not found" });
 		}
 
-		const descriptionText = story.description.join(" ");
+	
+		const descriptionText = Array.isArray(story.description) 
+			? story.description.join(" ") 
+			: story.description;
 
 		const payload = {
 			project_key: project_id,
@@ -200,6 +212,8 @@ router.post('/pushToJIRA', async (req, res) => {
 			description: descriptionText,
 		};
 		console.log(JSON.stringify(payload));
+
+		
 		const jiraResponse = await axios.post(
 			`http://18.222.152.111:5001/create_jira_story?username=${userId}`,
 			payload,
@@ -210,9 +224,21 @@ router.post('/pushToJIRA', async (req, res) => {
 			}
 		);
 
+		
+		const project = await UserProject.findOneAndUpdate(
+			{ project_id },
+			{ $inc: { active_stories: -1 } }, 
+			{ new: true } 
+		);
+
+		if (!project) {
+			return res.status(404).json({ error: "Project not found" });
+		}
+
 		res.status(200).json({
 			message: "Story pushed to JIRA successfully",
 			jiraResponse: jiraResponse.data,
+			updatedProject: project, 
 		});
 	} catch (error) {
 		console.error("Error pushing story to JIRA:", error);
@@ -222,5 +248,6 @@ router.post('/pushToJIRA', async (req, res) => {
 		});
 	}
 });
+
 
 module.exports = router;
