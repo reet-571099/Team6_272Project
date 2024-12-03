@@ -165,6 +165,8 @@ const ProjectTasksView = ({ project, onBack }) => {
   );
 };
 
+
+
 // Project Selection View Component
 const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
   const [projects, setProjects] = useState([]);
@@ -177,14 +179,20 @@ const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
 
         const cookie = document.cookie.split('; ');
         console.log({cookie: cookie})
-        const usernamefromcookies = cookie.find(row => row.startsWith('user_email='));
-        console.log(usernamefromcookies);
-        const decodedusername = decodeURIComponent(usernamefromcookies);
-        console.log("decoded : ",decodedusername);
-        const emailObject = JSON.parse(decodedusername.split('=')[1]);
-        const email = emailObject.email; 
-        console.log(email);
-        const username = localStorage.getItem('username') || email ;  
+        const userDetailsFromCookies = cookie.find(row => row.startsWith('user_obj='));
+        if(userDetailsFromCookies)
+        {
+          const decodedUserObj = decodeURIComponent(userDetailsFromCookies);
+          console.log("decoded userObj: ", decodedUserObj);
+          const userObject = JSON.parse(decodedUserObj.split('=')[1]);
+          const email = userObject.email; 
+          const id = userObject.id; 
+          console.log(email);
+          console.log(id);
+          localStorage.setItem("userId",id);
+          localStorage.setItem("username",email);
+        }
+        const username = localStorage.getItem('username') ;  
         console.log(username);
         const response = await fetch(
           `http://18.222.152.111:5001/get_all_project_keys?username=${(username)}`
@@ -452,7 +460,7 @@ const TasksView = ({ project, tasks, onBack }) => {
   
       try {
         // Make the API call to create Jira story
-        const response = await fetch('http://localhost:3000/api/pushToJIRA', {
+        const response = await fetch('http://localhost:3001/api/pushToJIRA', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -685,20 +693,23 @@ const Dashboard = () => {
     }
   
     try {
-      // Specifically extract JWT from cookies
-      const cookie = document.cookie.split('; ');
-      console.log({cookie: cookie})
-      const jwtCookie = cookie.find(row => row.startsWith('jwt='));
-      
-      let token = null;
+     
+      let token = localStorage.getItem("jwt");
+  
+  
+      // Validate token
+      if (!token) {
+        const cookie = document.cookie.split('; ');
+        console.log({cookie: cookie})
+        const jwtCookie = cookie.find(row => row.startsWith('jwt='));
       if (jwtCookie) {
         token = jwtCookie.split('=')[1];
         console.log('JWT Token found in cookies:', !!token);
       }
-  
-      // Validate token
-      if (!token) {
+      else{
         throw new Error('No JWT token found in cookies. Please log in again.');
+      }
+        
       }
   
       // Validate selected project
@@ -725,14 +736,15 @@ const Dashboard = () => {
       });
 
      // If upload is successful, start polling
-
+      const userid= localStorage.getItem("id") || localStorage.getItem("userId");
+      console.log(userid);
       if (response.status === 200) {
         const pollInterval = setInterval(async () => {
-          const activeStoriesCount = await pollActiveStories('123456', 'P001'); // hardcoded for now 
+          const activeStoriesCount = await pollActiveStories(userid, selectedProject.key); // hardcoded for now 
           
           if (activeStoriesCount > 0) {
             clearInterval(pollInterval);
-            await fetchStories('P001');
+            await fetchStories(selectedProject.key);
           }
         }, 10000); // Poll every 10 seconds
        }

@@ -55,11 +55,14 @@ const AuthPage = () => {
 
       const data = await response.json();
       if (isSignUp) {
+        localStorage.setItem("jwt", data.token);
         localStorage.setItem("username" , data.user.email);
+        localStorage.setItem("id" , data.user._id);
         alert("Account created successfully! Redirecting to dashboard...");
       } else {
         localStorage.setItem("jwt", data.token);
         localStorage.setItem("username" , data.user.email);
+        localStorage.setItem("id" , data.user._id);
         alert("Login successful! Redirecting to dashboard...");
       }
 
@@ -73,6 +76,8 @@ const AuthPage = () => {
 
   const handleGoogleLogin = () => {
     window.location.href = "http://localhost:8000/api/users/auth/google";
+
+
   };
 
   // Google SVG Logo component

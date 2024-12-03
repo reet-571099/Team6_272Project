@@ -194,11 +194,12 @@ router.post('/pushToJIRA', async (req, res) => {
 		const descriptionText = story.description.join(" ");
 
 		const payload = {
-			project_key: "SCRUM",
+			project_key: project_id,
 			summary: story.story_name,
 			issuetype: "Task",
 			description: descriptionText,
 		};
+		console.log(JSON.stringify(payload));
 		const jiraResponse = await axios.post(
 			`http://18.222.152.111:5001/create_jira_story?username=${userId}`,
 			payload,
