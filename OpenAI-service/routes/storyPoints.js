@@ -160,8 +160,9 @@ router.post('/user-projects', async (req, res) => {
     }
 });
 
-router.post("/pushToJIRA", async (req, res) => {
-	const { story_id, project_id, userId } = req.body;
+
+router.post('/pushToJIRA', async (req, res) => {
+    const { story_id, project_id, userId } = req.body;
 
 	try {
 		const story = await UserStory.findOne({ story_id, project_id });
