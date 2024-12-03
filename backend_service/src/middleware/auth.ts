@@ -30,11 +30,12 @@ export const googleCallback = (
 			sameSite: "lax",
 			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		});
-		const userEmailObj = {
+		const userObj = {
 			email: user?.email,
+			id: user?._id?.toString(),
 		};
 		// Set user in cookie
-		res.cookie("user_email", JSON.stringify(userEmailObj), {
+		res.cookie("user_obj", JSON.stringify(userObj), {
 			httpOnly: false,
 			secure: process.env.NODE_ENV === "prod",
 			sameSite: "lax",
