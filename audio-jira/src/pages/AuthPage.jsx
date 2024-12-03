@@ -33,8 +33,8 @@ const AuthPage = () => {
     setError("");
     try {
       const url = isSignUp
-        ? "http://localhost:8000/api/users/signup"
-        : "http://localhost:8000/api/users/login";
+        ? "http://54.193.65.42:8000/api/users/signup"
+        : "http://54.193.65.42:8000/api/users/login";
 
       const payload = isSignUp
         ? formData
@@ -55,9 +55,11 @@ const AuthPage = () => {
 
       const data = await response.json();
       if (isSignUp) {
+        localStorage.setItem("username" , data.user.email);
         alert("Account created successfully! Redirecting to dashboard...");
       } else {
         localStorage.setItem("jwt", data.token);
+        localStorage.setItem("username" , data.user.email);
         alert("Login successful! Redirecting to dashboard...");
       }
 

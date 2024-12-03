@@ -174,10 +174,20 @@ const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const username = localStorage.getItem('username') || 'nikhilkoli287@gmail.com';
-        
+
+        const cookie = document.cookie.split('; ');
+        console.log({cookie: cookie})
+        const usernamefromcookies = cookie.find(row => row.startsWith('user_email='));
+        console.log(usernamefromcookies);
+        const decodedusername = decodeURIComponent(usernamefromcookies);
+        console.log("decoded : ",decodedusername);
+        const emailObject = JSON.parse(decodedusername.split('=')[1]);
+        const email = emailObject.email; 
+        console.log(email);
+        const username = localStorage.getItem('username') || email ;  
+        console.log(username);
         const response = await fetch(
-          `http://18.222.152.111:5001/get_all_project_keys?username=${encodeURIComponent(username)}`
+          `http://18.222.152.111:5001/get_all_project_keys?username=${(username)}`
         );
 
         if (!response.ok) {
@@ -419,65 +429,96 @@ const TasksView = ({ project, tasks, onBack }) => {
     try {
       // Start loading state
       setIsLoading(true);
-
+  
       // Retrieve username from localStorage
       const username = localStorage.getItem('username') || 'nikhilkoli287@gmail.com';
-
+  
+      // Validate payload before sending
+      if (!confirmedTask.story_id || !confirmedTask.project_id) {
+        throw new Error('Missing required task information');
+      }
+  
       // Prepare the payload for the API
       const payload = {
-        project_key: confirmedTask.project_id,
-        summary: confirmedTask.story_name,
-        issuetype: "Story", 
-        description: confirmedTask.description,
-        assignee: username,
-        labels: ["AI-Generated"],
-        priority: confirmedTask?.priority?.name ? { name: confirmedTask.priority.name } : "Low",
+        "story_id": confirmedTask.story_id,
+        "project_id": confirmedTask.project_id,
+        "userId": username
       };
-
-      // Make the API call to create Jira story
-      const response = await fetch(
-        `http://18.222.152.111:5001/create_jira_story?username=${encodeURIComponent(username)}`, 
-        {
+  
+      // Extensive logging
+      console.log('Full Task Details:', confirmedTask);
+      console.log('Jira Push Payload:', JSON.stringify(payload, null, 2));
+      console.log('Username:', username);
+  
+      try {
+        // Make the API call to create Jira story
+        const response = await fetch('http://localhost:3000/api/pushToJIRA', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload)
+        });
+  
+        // Log raw response
+        const responseText = await response.text();
+        console.log('Raw Response Status:', response.status);
+        console.log('Raw Response Text:', responseText);
+  
+        // Try to parse response
+        let responseData;
+        try {
+          responseData = JSON.parse(responseText);
+          console.log('Parsed Response:', responseData);
+        } catch (parseError) {
+          console.error('JSON Parsing Error:', parseError);
+          throw new Error(`Failed to parse response: ${responseText}`);
         }
-      );
-
-      console.log(payload)
-
-      if (!response.ok) {
-        // Handle error response
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create Jira story');
+  
+        // Validate response structure
+        if (!responseData || !responseData.jiraResponse) {
+          throw new Error('Invalid response structure: ' + JSON.stringify(responseData));
+        }
+  
+        // Update the task's status locally to reflect successful creation
+        setUpdatedTasks((prev) =>
+          prev.map((task) =>
+            task.id === confirmedTask.id 
+              ? { 
+                  ...task, 
+                  isConfirmed: true, 
+                  jiraKey: responseData.jiraResponse.story_key
+                } 
+              : task
+          )
+        );
+  
+        // Success notification
+        alert(`Jira story created successfully: ${responseData.jiraResponse.story_key}`);
+        
+      } catch (fetchError) {
+        console.error('Fetch Error Details:', {
+          name: fetchError.name,
+          message: fetchError.message,
+          stack: fetchError.stack
+        });
+  
+        // More specific error handling
+        if (fetchError.name === 'TypeError') {
+          alert('Network error. Please check your internet connection.');
+        } else {
+          alert(`API Call Error: ${fetchError.message}`);
+        }
       }
-
-      // Parse the successful response
-      const responseData = await response.json();
-
-      // Update the task's status locally to reflect successful creation
-      setUpdatedTasks((prev) =>
-        prev.map((task) =>
-          task.id === confirmedTask.id 
-            ? { 
-                ...task, 
-                isConfirmed: true, 
-                jiraKey: responseData.key // Assuming the API returns the Jira issue key
-              } 
-            : task
-        )
-      );
-      alert(`Jira story created successfully!}`);
-      // Optional: Show a success toast or notification
-      console.log('Jira story created successfully:', responseData);
     } catch (error) {
-      // Handle any errors during the API call
-      console.error('Error creating Jira story:', error);
-      
-      // Show an error notification to the user
-      alert(`Failed to create Jira story: ${error.message}`);
+      // Catch-all error handling
+      console.error('Unexpected Error:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+  
+      alert(`Unexpected error: ${error.message}`);
     } finally {
       // Reset loading state
       setIsLoading(false);
@@ -516,6 +557,7 @@ const TasksView = ({ project, tasks, onBack }) => {
     </div>
   );
 };
+
 
 const AudioUploadView = ({ project, onFileUpload, onBack }) => (
   <div>
@@ -674,26 +716,26 @@ const Dashboard = () => {
 
       setIsLoading(true);
 
-      // const response = await axios.post('http://54.193.65.42:8000/api/upload', formData, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'multipart/form-data',
-      //   },
-      //   withCredentials: true,
-      // });
+      const response = await axios.post('http://54.193.65.42:8000/api/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+        withCredentials: true,
+      });
 
-      // If upload is successful, start polling
+     // If upload is successful, start polling
 
-      // if (response.status === 200) {
+      if (response.status === 200) {
         const pollInterval = setInterval(async () => {
-          const activeStoriesCount = await pollActiveStories('123456', 'P001');
+          const activeStoriesCount = await pollActiveStories('123456', 'P001'); // hardcoded for now 
           
           if (activeStoriesCount > 0) {
             clearInterval(pollInterval);
             await fetchStories('P001');
           }
         }, 10000); // Poll every 10 seconds
-      // }
+       }
 
     } catch (error) {
       console.error('Unexpected error:', error);
