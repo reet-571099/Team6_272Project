@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const storyPointsRouter = require('./routes/storyPoints');
 const {listenForMessages} = require('./SQSConsumer');
+const cors = require('cors');
 
 dotenv.config();
 
@@ -11,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(cors());
 
 const connectToDatabase = async () => {
     try {
