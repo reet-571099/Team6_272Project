@@ -133,6 +133,16 @@ router.post("/signup", [], async (req: Request, res: Response) => {
 			sameSite: "lax",
 			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		});
+		const userEmailObj = {
+			email: user?.email,
+		};
+		// Set user in cookie
+		res.cookie("user_email", JSON.stringify(userEmailObj), {
+			httpOnly: false,
+			secure: process.env.NODE_ENV === "prod",
+			sameSite: "lax",
+			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		});
 		req["user"] = user; // Attach user to the request object
 		res.status(201).json({ user, token });
 	} catch (err: any) {
@@ -152,6 +162,16 @@ router.post("/login", [], async (req, res) => {
 		);
 		// Set JWT in cookie
 		res.cookie("jwt", token, {
+			httpOnly: false,
+			secure: process.env.NODE_ENV === "prod",
+			sameSite: "lax",
+			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		});
+		const userEmailObj = {
+			email: user?.email,
+		};
+		// Set user in cookie
+		res.cookie("user_email", JSON.stringify(userEmailObj), {
 			httpOnly: false,
 			secure: process.env.NODE_ENV === "prod",
 			sameSite: "lax",

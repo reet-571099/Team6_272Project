@@ -30,6 +30,16 @@ export const googleCallback = (
 			sameSite: "lax",
 			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 		});
+		const userEmailObj = {
+			email: user?.email,
+		};
+		// Set user in cookie
+		res.cookie("user_email", JSON.stringify(userEmailObj), {
+			httpOnly: false,
+			secure: process.env.NODE_ENV === "prod",
+			sameSite: "lax",
+			// maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		});
 		req["user"] = user;
 		next();
 	})(req, res, next);
