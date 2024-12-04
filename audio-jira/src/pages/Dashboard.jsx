@@ -170,22 +170,6 @@ const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-
-        const cookie = document.cookie.split('; ');
-        console.log({cookie: cookie})
-        const userDetailsFromCookies = cookie.find(row => row.startsWith('user_obj='));
-        if(userDetailsFromCookies)
-        {
-          const decodedUserObj = decodeURIComponent(userDetailsFromCookies);
-          console.log("decoded userObj: ", decodedUserObj);
-          const userObject = JSON.parse(decodedUserObj.split('=')[1]);
-          const email = userObject.email; 
-          const id = userObject.id; 
-          console.log(email);
-          console.log(id);
-          localStorage.setItem("userId",id);
-          localStorage.setItem("username",email);
-        }
         const username = localStorage.getItem('username') ;  
         console.log(username);
         const response = await fetch(
@@ -322,19 +306,43 @@ const Dashboard = () => {
   const navigate = useNavigate();
   
   const [showJiraModal, setShowJiraModal] = useState(() => {
-    const hasSeenModal = localStorage.getItem('hasSeenJiraModal');
-    return !hasSeenModal;
+    // Check if Jira integration is validated in localStorage
+    
+    const cookie = document.cookie.split('; ');
+        console.log({cookie: cookie})
+        const userDetailsFromCookies = cookie.find(row => row.startsWith('user_obj='));
+        if(userDetailsFromCookies)
+        {
+          const decodedUserObj = decodeURIComponent(userDetailsFromCookies);
+          console.log("decoded userObj: ", decodedUserObj);
+          const userObject = JSON.parse(decodedUserObj.split('=')[1]);
+          const email = userObject.email; 
+          const id = userObject.id; 
+          const validated = userObject.validated;
+          console.log(email);
+          console.log(id);
+          localStorage.setItem("userId",id);
+          localStorage.setItem("username",email);
+          localStorage.setItem("validated",validated);
+        }
+    const isValidated = localStorage.getItem('validated');
+    // Return false (don't show modal) if 'validated' is 'true'
+    return isValidated !== 'true';
   });
 
   const handleJiraIntegrationComplete = (formData) => {
     console.log('Jira Integration Data:', formData);
-    localStorage.setItem('hasSeenJiraModal', 'true');
+    
+    // Set 'validated' to 'true' in localStorage
+    localStorage.setItem('validated', 'true');
     localStorage.setItem('jiraConfig', JSON.stringify(formData));
+    
     setShowJiraModal(false);
   };
-
+  
   const handleJiraIntegrationSkip = () => {
-    localStorage.setItem('hasSeenJiraModal', 'true');
+    // Set 'validated' to 'true' to prevent future modal displays
+    localStorage.setItem('validated', 'true');
     setShowJiraModal(false);
   };
 

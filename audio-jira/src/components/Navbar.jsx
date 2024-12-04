@@ -6,6 +6,23 @@ const Navbar = () => {
   const location = useLocation();
   const isAuthenticated = location.pathname === "/dashboard";
   const isAuthPage = location.pathname === "/auth";
+  
+  const handleLogout = () => {
+    // Clear localStorage
+    localStorage.clear();
+  
+    // Clear all cookies
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i];
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+    }
+  
+    // Navigate to login or home page
+    navigate("/");
+  };
 
   return (
     <nav className="fixed w-full bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
@@ -49,10 +66,7 @@ const Navbar = () => {
             )}
             {isAuthenticated && (
               <button
-                onClick={() => {
-                  localStorage.clear();
-                  navigate("/");
-                }}
+              onClick={handleLogout}
                 className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-all"
               >
                 Logout
