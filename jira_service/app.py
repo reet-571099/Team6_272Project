@@ -24,7 +24,7 @@ def log_origin(response):
     print("Response Access-Control-Allow-Origin:", response.headers.get("Access-Control-Allow-Origin"))
     return response
 
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://example.com"], "supports_credentials": True}})
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3001", "http://localhost:3000", "http://54.193.65.42:3000", "http://54.193.65.42:3001"], "supports_credentials": True}})
 
 #try this
 # CORS(app, resources={r"/*": {"origins": "*"}})
@@ -87,7 +87,7 @@ def home():
 def validate_user():
     """
     Validates the user credentials and domain to check Jira connectivity.
-    If successful, stores or updates user details in MongoDB.
+    If successful, stores or updates user details in MongoDB, including the token_validated field.
     """
     print("Received request to validate user credentials.")
 
@@ -125,22 +125,27 @@ def validate_user():
             try:
                 user_details = {
                     "username": username,
+                    "email": username,  # Use username as email
                     "api_token": api_token,
                     "domain": jira_domain,
                     "is_deleted": False,  # Ensure the entry is marked as active
+                    "token_validated": True,  # Mark token as validated
                     "updatedAt": datetime.datetime.utcnow()
                 }
 
                 # Check if the user already exists
-                existing_user = users_collection.find_one({"username": username})
+                existing_user = users_collection.find_one({"email": username})
 
                 if existing_user:
                     # Update existing user details
-                    print(f"Updating existing user details for username: {username}")
-                    users_collection.update_one({"username": username}, {"$set": user_details})
+                    print(f"Updating existing user details for email: {username}")
+                    users_collection.update_one(
+                        {"email": username},
+                        {"$set": user_details}
+                    )
                 else:
                     # Insert new user details
-                    print(f"Inserting new user details for username: {username}")
+                    print(f"Inserting new user details for email: {username}")
                     user_details["createdAt"] = datetime.datetime.utcnow()
                     users_collection.insert_one(user_details)
 
@@ -152,6 +157,16 @@ def validate_user():
 
         else:
             print(f"Validation failed. Jira response: {response.status_code}, {response.text}")
+
+            # Mark the token as invalid in the database
+            try:
+                users_collection.update_one(
+                    {"email": username},
+                    {"$set": {"token_validated": False, "updatedAt": datetime.datetime.utcnow()}}
+                )
+            except Exception as db_err:
+                print(f"Error updating token_validated in MongoDB: {db_err}")
+
             return jsonify({"status": "error", "message": response.text}), response.status_code
 
     except requests.RequestException as req_err:
@@ -282,6 +297,7 @@ def create_jira_story():
     url = f"https://{jira_domain}/rest/api/3/issue"
     try:
         response = requests.post(url, headers=headers, data=payload_json, auth=auth)
+        print("Response from jira for create story is : ", response)
         if response.status_code == 201:
             return jsonify({"status": "success", "story_id": response.json()["id"], "story_key": response.json()["key"]})
         else:
@@ -291,7 +307,6 @@ def create_jira_story():
         return jsonify({"status": "error", "message": "Error connecting to Jira"}), 500
 
 # Endpoint to fetch all project keys
-@app.route('/get_all_project_keys', methods=['GET'])
 @app.route('/get_all_project_keys', methods=['GET'])
 def get_all_project_keys():
     """
@@ -338,7 +353,7 @@ def get_all_project_keys():
             # Fetch story count using Jira Search API
             url_search = f"https://{jira_domain}/rest/api/3/search"
             query_params = {
-                "jql": f"project={project_key} AND issuetype=Story",
+                "jql": f"project={project_key}",
                 "fields": "id",
                 "maxResults": 0  # Only fetch the total count
             }
@@ -408,7 +423,9 @@ def get_team_members():
         if response.status_code == 200:
             users = response.json()
             # Extract usernames and emails
-            team_members = [{"username": user["displayName"], "email": user.get("emailAddress", "N/A")} for user in users]
+            team_members = [{"username": user["displayName"], "email": user.get("emailAddress", "N/A"), "accountId": user.get("accountId")} for user in users]
+
+            # team_members = [{"username": user["displayName"], "email": user.get("emailAddress", "N/A")} for user in users]
             print(f"Fetched {len(team_members)} team members for project: {project_key}")
             return jsonify({"status": "success", "team_members": team_members})
         else:
