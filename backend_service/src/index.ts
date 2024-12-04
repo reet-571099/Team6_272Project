@@ -10,27 +10,26 @@ import UploadRoutes from "./upload/upload.js";
 const app = express();
 app.use(express.json());
 
+// app.use(cors());
+
+const corsOptions = {
+	origin: "http://localhost:3000", // Allow only your frontend origin
+	credentials: true, // Allow cookies and authentication headers
+};
+app.use(cors(corsOptions));
+
+// const allowedOrigins = ["http://localhost:3001", "http://54.193.65.42:3001"];
 // const corsOptions = {
-// 	origin: "http://localhost:3000", // Allow only your frontend origin
+// 	origin: (origin, callback) => {
+// 		if (!origin || allowedOrigins.includes(origin)) {
+// 			callback(null, true); // Allow the request if the origin is in the list or for non-origin requests (e.g., mobile apps)
+// 		} else {
+// 			callback(new Error("Not allowed by CORS")); // Block the request if origin is not allowed
+// 		}
+// 	},
 // 	credentials: true, // Allow cookies and authentication headers
 // };
 // app.use(cors(corsOptions));
-
-const allowedOrigins = ["http://localhost:3001", "http://54.193.65.42:3001"];
-
-const corsOptions = {
-	origin: (origin, callback) => {
-		if (!origin || allowedOrigins.includes(origin)) {
-			callback(null, true); // Allow the request if the origin is in the list or for non-origin requests (e.g., mobile apps)
-		} else {
-			callback(new Error("Not allowed by CORS")); // Block the request if origin is not allowed
-		}
-	},
-	credentials: true, // Allow cookies and authentication headers
-};
-// app.use(cors());
-
-app.use(cors(corsOptions));
 
 app.use(cookieParser());
 app.use(passport.initialize());
