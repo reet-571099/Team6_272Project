@@ -12,11 +12,11 @@ app.use(express.json());
 
 // app.use(cors());
 
-const corsOptions = {
-	origin: "http://localhost:3001", // Allow only your frontend origin
-	credentials: true, // Allow cookies and authentication headers
-};
-app.use(cors(corsOptions));
+// const corsOptions = {
+// 	origin: "http://localhost:3001", // Allow only your frontend origin
+// 	credentials: true, // Allow cookies and authentication headers
+// };
+// app.use(cors(corsOptions));
 
 // const allowedOrigins = ["http://localhost:3001", "http://54.193.65.42:3001"];
 // const corsOptions = {
@@ -30,6 +30,12 @@ app.use(cors(corsOptions));
 // 	credentials: true, // Allow cookies and authentication headers
 // };
 // app.use(cors(corsOptions));
+
+const corsOptions = {
+	origin: ["http://localhost:3001", "http://54.193.65.42:3001"], // Allow only your frontend origin
+	credentials: true, // Allow cookies and authentication headers
+};
+app.use(cors(corsOptions));
 
 app.use(cookieParser());
 app.use(passport.initialize());
