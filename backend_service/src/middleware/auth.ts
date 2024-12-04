@@ -33,6 +33,7 @@ export const googleCallback = (
 		const userObj = {
 			email: user?.email,
 			id: user?._id?.toString(),
+			validated:user?.token_validated || false
 		};
 		// Set user in cookie
 		res.cookie("user_obj", JSON.stringify(userObj), {

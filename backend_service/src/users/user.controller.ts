@@ -136,6 +136,7 @@ router.post("/signup", [], async (req: Request, res: Response) => {
 		const userObj = {
 			email: user?.email,
 			id: user?._id?.toString(),
+			validated:user?.token_validated,
 		};
 		// Set user in cookie
 		res.cookie("user_obj", JSON.stringify(userObj), {
@@ -171,6 +172,7 @@ router.post("/login", [], async (req, res) => {
 		const userObj = {
 			email: user?.email,
 			id: user?._id?.toString(),
+			validated:user?.token_validated,
 		};
 		// Set user in cookie
 		res.cookie("user_obj", JSON.stringify(userObj), {
