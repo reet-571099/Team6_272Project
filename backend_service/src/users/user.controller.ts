@@ -196,7 +196,7 @@ router.get(
 	"/auth/google/callback",
 	[googleCallback],
 	(req: Request, res: Response) => {
-		res.redirect("http://sjsucmpe.ddns.net:3001/dashboard");
+		res.redirect("http://54.193.65.42:3001/dashboard");
 		//res.redirect("http://localhost:3001/dashboard");
 	}
 );
