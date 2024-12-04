@@ -24,7 +24,7 @@ const TaskEditModal = ({ story, isOpen, onClose, onSave }) => {
 
     try {
       const response = await axios.put(
-        `http://localhost:3001/api/stories/${story.story_id}/${editedStory.project_id}`,
+        `http://54.193.65.42:3000/api/stories/${story.story_id}/${editedStory.project_id}`,
         updatedStory,
         {
           headers: {

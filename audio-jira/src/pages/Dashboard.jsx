@@ -358,7 +358,7 @@ const Dashboard = () => {
 
   const pollActiveStories = async (userId, projectId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/getActiveStories`, {
+      const response = await axios.get(`http://54.193.65.42:3000/api/getActiveStories`, {
         params: {
           user_id: userId,
           project_id: projectId
@@ -374,7 +374,7 @@ const Dashboard = () => {
   
   const fetchStories = async (projectId) => {
     try {
-      const response = await axios.get(`http://localhost:3001/api/stories/${projectId}`);
+      const response = await axios.get(`http://54.193.65.42:3000/api/stories/${projectId}`);
       
       navigate('/tasks', { state: { tasks: response.data.stories, project: selectedProject }});
       setIsLoading(false);

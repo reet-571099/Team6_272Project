@@ -189,7 +189,7 @@ const TasksView = ({ project, tasks, onBack }) => {
   
       try {
         // Make the API call to create Jira story
-        const response = await fetch('http://localhost:3001/api/pushToJIRA', {
+        const response = await fetch('http://54.193.65.42:3000/api/pushToJIRA', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
