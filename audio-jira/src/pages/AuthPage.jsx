@@ -33,8 +33,8 @@ const AuthPage = () => {
     setError("");
     try {
       const url = isSignUp
-        ? "http://localhost:8000/api/users/signup"
-        : "http://localhost:8000/api/users/login";
+        ? "http://54.193.65.42:8000/api/users/signup"
+        : "http://54.193.65.42:8000/api/users/login";
 
       const payload = isSignUp
         ? formData
@@ -76,7 +76,7 @@ const AuthPage = () => {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:8000/api/users/auth/google";
+    window.location.href = "http://54.193.65.42:8000/api/users/auth/google";
 
 
   };
