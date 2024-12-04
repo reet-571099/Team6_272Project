@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TaskEditModal from "../components/TaskEditModal";
 import {
@@ -7,6 +7,7 @@ import {
   Check,
 } from "lucide-react";
 import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -152,14 +153,20 @@ const TaskCard = ({ task, onEdit, onConfirm, onCancel, isLoading }) => {
   );
 };
 
-const TasksView = ({ project, tasks, onBack }) => {
+const TasksView = ({ project, tasks, onTasksUpdate }) => {
+  const navigate = useNavigate();
   const [updatedTasks, setUpdatedTasks] = useState(tasks);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleEditTask = (editedTask) => {
-    setUpdatedTasks((prev) =>
-      prev.map((task) => (task.id === editedTask.id ? editedTask : task))
+    const newTasks = updatedTasks.map((task) => 
+      task.story_id === editedTask.story_id 
+        ? { ...task, ...editedTask } 
+        : task
     );
+    
+    setUpdatedTasks(newTasks);
+    onTasksUpdate(newTasks);
   };
 
   const handleConfirmTask = async (confirmedTask) => {
@@ -269,6 +276,14 @@ const TasksView = ({ project, tasks, onBack }) => {
           <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
           <p className="text-gray-500">AI Generated Tasks</p>
         </div>
+        <button 
+              onClick={() => {
+                navigate('/dashboard')
+              }}
+              className="text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Back to Projects
+        </button>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -291,23 +306,48 @@ const TasksView = ({ project, tasks, onBack }) => {
 
 const TasksPage = () => {
   const location = useLocation();
-  const tasks = location.state?.tasks || [];
+  const initialTasks = location.state?.tasks || [];
   const project = location.state?.project || {};
+  
+  // Create a unique key for this project's tasks
+  const projectTasksKey = `projectTasks_${project.id || 'unknown'}`;
 
-  console.log({ tasks });
+  // Retrieve tasks from localStorage, or use initial tasks
+  const [tasks, setTasks] = useState(() => {
+    const savedTasks = localStorage.getItem(projectTasksKey);
+    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
+  });
+
+  // Clear previous tasks and set initial tasks when the project changes
+  useEffect(() => {
+    // Clear all project-specific task storage keys
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('projectTasks_')) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    // Set initial tasks for this specific project
+    localStorage.setItem(projectTasksKey, JSON.stringify(initialTasks));
+    setTasks(initialTasks);
+  }, [project.id]);
+
+  // Update localStorage whenever tasks change
+  useEffect(() => {
+    localStorage.setItem(projectTasksKey, JSON.stringify(tasks));
+  }, [tasks, projectTasksKey]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
       <div className="py-6 pt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <TasksView
+          <TasksView
             tasks={tasks}
             project={project}
+            onTasksUpdate={setTasks}
           />
         </div>
       </div>
-
     </div>
   );
 };
