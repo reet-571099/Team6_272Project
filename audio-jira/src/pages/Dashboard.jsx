@@ -177,7 +177,7 @@ const ProjectSelectionView = ({ onProjectSelect, onViewTasks }) => {
         );
 
         if (!response.ok) {
-          throw new Error('Failed to fetch projects');
+          throw new Error('No Projects Found , Please create a project in Jira first');
         }
 
         const data = await response.json();
