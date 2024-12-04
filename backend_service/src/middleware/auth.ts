@@ -13,10 +13,6 @@ export const googleCallback = (
 	next: NextFunction
 ) => {
 	passportConfig.authenticate("google", { session: false }, (err, user) => {
-		// TODO: Delete
-		console.log("|||||||||||||||||||||||||||||||||||||||");
-		console.log("err: ", err);
-		console.log("|||||||||||||||||||||||||||||||||||||||");
 		if (err) {
 			return next(err);
 		}

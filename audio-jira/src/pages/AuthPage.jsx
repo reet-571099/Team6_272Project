@@ -80,9 +80,9 @@ const AuthPage = () => {
 	};
 
 	const handleGoogleLogin = () => {
-		// window.location.href = "http://54.193.65.42:8000/api/users/auth/google";
-		window.location.href =
-			"http://sjsucmpe.ddns.net:8000/api/users/auth/google";
+		window.location.href = "http://54.193.65.42:8000/api/users/auth/google";
+		// window.location.href =
+		// 	"http://sjsucmpe.ddns.net:8000/api/users/auth/google";
 	};
 
 	// Google SVG Logo component
