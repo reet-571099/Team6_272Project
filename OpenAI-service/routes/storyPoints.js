@@ -216,7 +216,7 @@ router.post("/pushToJIRA", async (req, res) => {
 		console.log(JSON.stringify(payload));
 
 		const jiraResponse = await axios.post(
-			`http://18.222.152.111:5001/create_jira_story?username=${userId}`,
+			`http://3.15.28.161:5001/create_jira_story?username=${userId}`,
 			payload,
 			{
 				headers: {
